@@ -1,3 +1,3 @@
-from .debate_agent import DialogueAgent, DialogueSimulator, DialogueAgentWithTools
+from .debate_agent import DialogueAgent, DialogueSimulatorAgent, DialogueAgentWithTools
 
-__all__ = ['DialogueAgent', 'DialogueSimulator', 'DialogueAgentWithTools']
+__all__ = ['DialogueAgent', 'DialogueSimulatorAgent', 'DialogueAgentWithTools']

@@ -10,7 +10,7 @@ draw_graph = "base_workflow.draw_graph:main"
 main = "base_workflow.main:main"
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "3.13.1"
 langgraph = "^0.2.59"
 langsmith = "^0.1.147"
 langchain-core = "^0.3.24"
@@ -31,8 +31,8 @@ streamlit = "^1.41.1"
 markdown2 = "^2.5.3"
 weasyprint = "^65.0"
 arxiv = "^2.1.3"
-duckduckgo-search = "^2025.4.4"
 wikipedia = "^1.4.0"
+duckduckgo-search = "^8.0.1"
 
 [tool.poetry.plugins.dotenv]
 ignore = "false"

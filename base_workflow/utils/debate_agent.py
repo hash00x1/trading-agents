@@ -82,19 +82,26 @@ class DialogueAgentWithTools(DialogueAgent):
 def select_next_speaker(step: int, agents: List[DialogueAgentWithTools]) -> int:
     return (step) % len(agents)  # Alternating speakers
 
-class DialogueSimulator:
+
+class DialogueSimulatorAgent:
+# Change this so that it could be reused with following functions:
+# select rounds of debate.
+# support different 
     def __init__(
         self,
         agents: List[DialogueAgent],
         # selection_function: Callable[[int, List[DialogueAgent]], int],
+        rounds: int = 6,
     ) -> None:
         self.agents = agents
         self._step = 0
         self.select_next_speaker = select_next_speaker
+        self.rounds = rounds
 
     def reset(self):
         for agent in self.agents:
             agent.reset()
+        self._step = 0
 
     def inject(self, name: str, message: str):
         """
@@ -122,4 +129,24 @@ class DialogueSimulator:
         self._step += 1
 
         return speaker.name, message
+    
+    def run(
+            self,
+            initial_message: str,
+            moderator_name: str = "Moderator",
+            ) -> List[tuple[str, str]]:
+        """
+        Resets, injects the initial message, and runs the conversation
+        """
+        self.reset()
+        log: List[tuple[str, str]] = []
+
+        # kick things off
+        self.inject(moderator_name, initial_message)
+        log.append((moderator_name, initial_message))
+
+        for _ in range(self.rounds):
+            name, message = self.step()
+            log.append((name, message))
+        return log
     
