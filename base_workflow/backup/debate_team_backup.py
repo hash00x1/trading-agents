@@ -8,7 +8,7 @@ from langchain.schema import (
     SystemMessage,
 )
 from langchain_openai import ChatOpenAI
-from base_workflow.utils.debate_agent import DialogueAgent, DialogueSimulator, DialogueAgentWithTools
+from base_workflow.utils.debate_agent import DialogueAgent, DialogueSimulatorAgent, DialogueAgentWithTools
 
 if __name__ == "__main__":        
     names = {
@@ -88,7 +88,7 @@ if __name__ == "__main__":
             Do not add anything else."""
         ),
     ]
-    specified_topic = ChatOpenAI(temperature=1.0)(topic_specifier_prompt).content
+    specified_topic = ChatOpenAI(temperature=1.0)(topic_specifier_prompt).content # check if this part should be added to the class
 
     print(f"Original topic:\n{topic}\n")
     print(f"Detailed topic:\n{specified_topic}\n")
@@ -115,7 +115,7 @@ if __name__ == "__main__":
     max_iters = 6
     n = 0
 
-    simulator = DialogueSimulator(agents=agents, selection_function=select_next_speaker)
+    simulator = DialogueSimulatorAgent(agents=agents)
     simulator.reset()
     simulator.inject("Moderator", specified_topic)
     print(f"(Moderator): {specified_topic}")

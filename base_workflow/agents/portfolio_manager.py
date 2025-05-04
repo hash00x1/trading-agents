@@ -4,12 +4,13 @@ from typing import List, Callable
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
+from base_workflow.agents import aggressive_risk_manager, conservative_risk_manager, neutral_risk_manager
 
 
 llm = ChatOpenAI(model='gpt-4o-mini', temperature=0.7)
 
 
-class Trader(DialogueSimulatorAgent):
+class PortfolioManager(DialogueSimulatorAgent):
     """
     Evaluating recommendations and insights from analysts and researchers.
     Deciding on the timing and size of trades to maximize trading returns
@@ -50,11 +51,11 @@ class Trader(DialogueSimulatorAgent):
 
 
 # Initialize the Trader agent
-trader = Trader(agents = [bullish_researcher, bearish_researcher], rounds=6)       
+portfolio_manager = PortfolioManager(agents = [aggressive_risk_manager, conservative_risk_manager, neutral_risk_manager], rounds=6)       
 
 # Example usage
 if __name__ == "__main__":
-  result = trader.analysis()
+  result = portfolio_manager.analysis()
   print(result)
 
     

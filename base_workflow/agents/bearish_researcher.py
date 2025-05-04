@@ -12,6 +12,6 @@ You should argue that investments in certain assets could have negative outcomes
 bearish_researcher = DialogueAgentWithTools(
     name="bearish Researcher",
     system_message=SystemMessage(content=bearish_researcher_system_message),
-    model=ChatOpenAI(model="gpt-4o", temperature=0.2),
+    model=llm,
     tool_names=bearish_researcher_tools
 )

@@ -12,6 +12,6 @@ You should encourage others to initiate or continue positions in certain assets.
 bullish_researcher = DialogueAgentWithTools(
     name="Bullish Researcher",
     system_message=SystemMessage(content=bullish_researcher_system_message),
-    model=ChatOpenAI(model="gpt-4o", temperature=0.2),
+    model=llm,
     tool_names=bullish_researcher_tools
 )

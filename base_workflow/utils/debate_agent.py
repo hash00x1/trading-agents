@@ -44,6 +44,8 @@ class DialogueAgent:
         Concatenates {message} spoken by {name} into message history
         """
         self.message_history.append(f"{name}: {message}")
+
+        
 class DialogueAgentWithTools(DialogueAgent):
     def __init__(
         self,
@@ -89,7 +91,7 @@ class DialogueSimulatorAgent:
 # support different 
     def __init__(
         self,
-        agents: List[DialogueAgent],
+        agents: list[DialogueAgentWithTools],
         # selection_function: Callable[[int, List[DialogueAgent]], int],
         rounds: int = 6,
     ) -> None:
@@ -98,10 +100,10 @@ class DialogueSimulatorAgent:
         self.select_next_speaker = select_next_speaker
         self.rounds = rounds
 
-    def reset(self):
-        for agent in self.agents:
-            agent.reset()
-        self._step = 0
+    # def reset(self):
+    #     for agent in self.agents:
+    #         agent.reset()
+    #     self._step = 0
 
     def inject(self, name: str, message: str):
         """
@@ -138,7 +140,9 @@ class DialogueSimulatorAgent:
         """
         Resets, injects the initial message, and runs the conversation
         """
-        self.reset()
+        for agent in self.agents:
+            agent.reset()
+        self._step = 0
         log: List[tuple[str, str]] = []
 
         # kick things off
