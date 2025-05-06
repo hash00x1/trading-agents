@@ -1,13 +1,12 @@
 from base_workflow.agents import news_analyst
 from langchain_core.messages import HumanMessage
 from langgraph.types import Command
-from langgraph.graph import MessagesState
+# from langgraph.graph import MessagesState
 from typing import Literal
+from agents.state import AgentState
 
-class State(MessagesState):
-    next: str
     
-def news_analyst_node(state: MessagesState) -> Command[Literal["fundamentals_analyst"]]:
+def news_analyst_node(state: AgentState) -> Command[Literal["fundamentals_analyst"]]:
 	result = news_analyst.invoke(state)
 	return Command(
 		update={

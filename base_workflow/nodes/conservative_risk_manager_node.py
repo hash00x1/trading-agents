@@ -1,4 +1,4 @@
-from base_workflow.agents import conservative_agent
+from base_workflow.agents import conservative_risk_manager
 from langchain_core.messages import HumanMessage
 from langgraph.types import Command
 from langgraph.graph import MessagesState
@@ -7,8 +7,8 @@ from typing import Literal
 class State(MessagesState):
     next: str
 
-def conservative_agent_node(state: MessagesState) -> Command[Literal['supervisor']]:
-	result = conservative_agent.invoke(state)
+def conservative_risk_manager_node(state: MessagesState) -> Command[Literal['supervisor']]:
+	result = conservative_risk_manager.invoke(state)
 	return Command(
 		update={
 			'messages': [

@@ -3,13 +3,12 @@ from turtle import update
 from langchain_core.messages import HumanMessage
 from base_workflow.agents import market_analyst
 from langgraph.types import Send, Command
-from langgraph.graph import MessagesState
+# from langgraph.graph import MessagesState
 from typing import Literal
+from agents.state import AgentState
 
-class State(MessagesState):
-    next: str
     
-def market_analyst_node(state: MessagesState) -> Command[Literal["social_media_analyst"]]:
+def market_analyst_node(state: AgentState) -> Command[Literal["social_media_analyst"]]:
 	result = market_analyst.invoke(state)
 	return Command(
 		update={

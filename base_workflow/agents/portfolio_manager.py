@@ -1,8 +1,5 @@
-from base_workflow.utils.debate_agent import DialogueSimulatorAgent, DialogueAgent, DialogueAgentWithTools
-from base_workflow.agents import bearish_researcher, bullish_researcher
-from typing import List, Callable
-from langchain.chains import LLMChain
-from langchain.prompts import PromptTemplate
+from base_workflow.utils.debate_agent import DialogueSimulatorAgent, DialogueAgent
+from typing import List
 from langchain_openai import ChatOpenAI
 from base_workflow.agents import aggressive_risk_manager, conservative_risk_manager, neutral_risk_manager
 
