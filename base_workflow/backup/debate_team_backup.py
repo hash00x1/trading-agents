@@ -8,7 +8,7 @@ from langchain.schema import (
     SystemMessage,
 )
 from langchain_openai import ChatOpenAI
-from base_workflow.utils.debate_agent import DialogueAgent, DialogueSimulatorAgent, DialogueAgentWithTools
+from base_workflow.agents.debate_agent import DialogueAgent, DialogueSimulatorAgent, DialogueAgentWithTools
 
 if __name__ == "__main__":        
     names = {

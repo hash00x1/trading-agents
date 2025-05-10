@@ -1,6 +1,6 @@
 from calendar import c
 from langchain_openai import ChatOpenAI
-from base_workflow.utils import DialogueAgentWithTools
+from .debate_agent import DialogueAgentWithTools
 from langchain_core.messages import SystemMessage
 
 

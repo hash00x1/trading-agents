@@ -1,7 +1,8 @@
-from base_workflow.utils.debate_agent import DialogueSimulatorAgent, DialogueAgent
+from base_workflow.agents.debate_agent import DialogueAgentWithTools, DialogueSimulatorAgent, DialogueAgent
 from typing import List
 from langchain_openai import ChatOpenAI
 from base_workflow.agents import aggressive_risk_manager, conservative_risk_manager, neutral_risk_manager
+from base_workflow.state import AgentState
 
 
 llm = ChatOpenAI(model='gpt-4o-mini', temperature=0.7)
@@ -14,8 +15,8 @@ class PortfolioManager(DialogueSimulatorAgent):
     Placing buy or sell orders in the market.
     Adjusting portfolio allocations in response to market changes and new information.
     """
-    def __init__(self, agents: List[DialogueAgent], rounds) -> None:
-        super().__init__(agents=agents, rounds=rounds)
+    def __init__(self, portfolio_agents: List[DialogueAgentWithTools], rounds) -> None:
+        super().__init__(agents=portfolio_agents, rounds=rounds)
 
 
     def analyze_conversation(self, conversation_log: List[tuple[str, str]]) -> str:      # Use the LLM to summarize and analyze the conversation log
@@ -38,8 +39,8 @@ class PortfolioManager(DialogueSimulatorAgent):
       return analysis
 
 
-    def analysis(self) -> tuple[str, str]:
-        log = super().run(initial_message="Let's discuss the potential of technology stocks in the current market.")
+    def analysis(self, knowledge) -> tuple[str, str]:
+        log = super().run(knowledge=knowledge) # later use other data from the conversation log to replace the knowledge.
         # print it out:
         for speaker, text in log:
             print(f"({speaker}): {text}\n")
@@ -48,11 +49,9 @@ class PortfolioManager(DialogueSimulatorAgent):
 
 
 # Initialize the Trader agent
-portfolio_manager = PortfolioManager(agents = [aggressive_risk_manager, conservative_risk_manager, neutral_risk_manager], rounds=6)       
+portfolio_manager = PortfolioManager(portfolio_agents = [aggressive_risk_manager, conservative_risk_manager, neutral_risk_manager], rounds=6)       
 
 # Example usage
-if __name__ == "__main__":
-  result = portfolio_manager.analysis()
-  print(result)
-
-    
+# if __name__ == "__main__":
+  # result = portfolio_manager.analysis()
+  # print(result)

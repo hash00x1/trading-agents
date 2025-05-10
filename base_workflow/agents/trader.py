@@ -1,7 +1,9 @@
-from base_workflow.utils.debate_agent import DialogueSimulatorAgent, DialogueAgent
+from typer.cli import state
+from base_workflow.agents.debate_agent import DialogueAgentWithTools, DialogueSimulatorAgent, DialogueAgent
 from base_workflow.agents import bearish_researcher, bullish_researcher
 from typing import List
 from langchain_openai import ChatOpenAI
+from base_workflow.state import AgentState
 
 
 llm = ChatOpenAI(model='gpt-4o-mini', temperature=0.7)
@@ -14,8 +16,8 @@ class Trader(DialogueSimulatorAgent):
     Placing buy or sell orders in the market.
     Adjusting portfolio allocations in response to market changes and new information.
     """
-    def __init__(self, agents: List[DialogueAgent], rounds) -> None:
-        super().__init__(agents=agents, rounds=rounds)
+    def __init__(self, trader_agents: List[DialogueAgentWithTools], rounds) -> None:
+        super().__init__(agents=trader_agents, rounds=rounds)
 
 
     def analyze_conversation(self, conversation_log: List[tuple[str, str]]) -> str:      # Use the LLM to summarize and analyze the conversation log
@@ -37,22 +39,31 @@ class Trader(DialogueSimulatorAgent):
       analysis = self.model.predict(analysis_prompt)
       return analysis
 
-
-    def analysis(self) -> tuple[str, str]:
-        log = super().run(initial_message="Let's discuss the potential of technology stocks in the current market.")
-        # print it out:
+    def analysis(self, knowledge) -> str:
+        # use the real data from the conversation log to feed the system.
+        log = super().run(knowledge=knowledge)
         for speaker, text in log:
             print(f"({speaker}): {text}\n")
-        return "trader", log
 
+        str_log = str(log)
+        return str_log
+
+    # def analysis(self, knowledge) -> tuple[str, str]:
+    #     # use the real data from the conversation log to feed the system.
+    #     log = super().run(knowledge=knowledge)
+    #     for speaker, text in log:
+    #         print(f"({speaker}): {text}\n")
+
+    #     str_log = str(log)
+    #     return "trader", log
 
 
 # Initialize the Trader agent
-trader = Trader(agents = [bullish_researcher, bearish_researcher], rounds=6)       
+trader = Trader(trader_agents=[bullish_researcher, bearish_researcher], rounds=6)       
 
-# Example usage
-if __name__ == "__main__":
-  result = trader.analysis()
-  print(result)
+# Test the Trader agent
+# if __name__ == "__main__":
+#   result = trader.analysis()
+#   print(result)
 
     

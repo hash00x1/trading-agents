@@ -5,10 +5,12 @@ from base_workflow.agents import market_analyst
 from langgraph.types import Send, Command
 # from langgraph.graph import MessagesState
 from typing import Literal
-from agents.state import AgentState
+from base_workflow.state import AgentState
 
     
-def market_analyst_node(state: AgentState) -> Command[Literal["social_media_analyst"]]:
+#def market_analyst_node(state: AgentState) -> Command[Literal["social_media_analyst"]]:
+# only for test of bearish_researcher_node
+def market_analyst_node(state: AgentState) -> Command[Literal['trader']]: 
 	result = market_analyst.invoke(state)
 	return Command(
 		update={
@@ -16,6 +18,6 @@ def market_analyst_node(state: AgentState) -> Command[Literal["social_media_anal
 				HumanMessage(content=result["messages"][-1].content, name='search')
 			]
 		},
-		goto="social_media_analyst"
+		goto='trader'
 		)
 

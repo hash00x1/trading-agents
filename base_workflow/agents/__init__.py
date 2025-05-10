@@ -9,7 +9,11 @@ from .market_analyst import market_analyst
 from .news_analyst import news_analyst 
 from .trader import trader
 from .portfolio_manager import portfolio_manager
-from .state import AgentState
+from .debate_agent import (
+    DialogueAgent,
+    DialogueSimulatorAgent,
+    DialogueAgentWithTools,
+)
 
 __all__ = [
     'social_media_analyst', 
@@ -23,5 +27,7 @@ __all__ = [
     'news_analyst',
     'portfolio_manager',
     'trader',
-    'AgentState'
+    'DialogueAgent',
+    'DialogueSimulatorAgent',
+    'DialogueAgentWithTools'
     ]

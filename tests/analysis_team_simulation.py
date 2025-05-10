@@ -10,7 +10,7 @@ from typing_extensions import TypedDict
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 from base_workflow.nodes import (market_analyst_node, social_media_analyst_node, news_analyst_node, fundamentals_analyst_node)
-from agents.state import AgentState
+from base_workflow.state import AgentState
 # from base_workflow.agents import aggressive_agent, bearish_researcher, bullish_researcher, trader
 # from base_workflow.utils import DialogueAgentWithTools
 # from base_workflow.utils.debate_agent import DialogueSimulator
