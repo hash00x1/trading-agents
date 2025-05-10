@@ -1,5 +1,5 @@
 from base_workflow.workflow import super_graph
-from tests.analysis_team_simulation import research_graph
+from tests.sequential_workflow import research_graph
 from base_workflow.utils.risk_management_team import paper_writing_graph
 from langchain_core.runnables.graph import MermaidDrawMethod
 

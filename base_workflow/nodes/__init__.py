@@ -8,7 +8,7 @@ from .market_analyst_node import market_analyst_node
 from .neutral_risk_manager_node import neutral_risk_manager
 from .news_analyst_node import news_analyst_node
 from .social_media_analyst_node import social_media_analyst_node
-# from .trader_node import trader_node
+from .trader_node import trader_node
 
 
 
@@ -21,5 +21,5 @@ __all__ = [
     'market_analyst_node',
     'news_analyst_node',
     'social_media_analyst_node',
-    # 'trader_node'
+    'trader_node'
     ]

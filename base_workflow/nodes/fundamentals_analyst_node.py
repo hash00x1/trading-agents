@@ -8,7 +8,7 @@ from typing import Literal
 from base_workflow.state import AgentState
 
     
-def fundamentals_analyst_node(state: AgentState) -> Command[None]:
+def fundamentals_analyst_node(state: AgentState) -> Command[Literal['trader']]:
 	result = fundamentals_analyst.invoke(state)
 	return Command(
 		update={
@@ -16,6 +16,6 @@ def fundamentals_analyst_node(state: AgentState) -> Command[None]:
 				HumanMessage(content=result["messages"][-1].content, name='search')
 			]
 		},
-		# goto='END'
+		goto='trader'
 		)
 
