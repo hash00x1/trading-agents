@@ -9,8 +9,8 @@ from sympy.strategies.rl import subs
 from typing_extensions import TypedDict
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
-from base_workflow.nodes import (market_analyst_node, social_media_analyst_node, news_analyst_node, fundamentals_analyst_node)
-from base_workflow.state import AgentState
+from base_workflow.nodes import (technical_analyst_node, social_media_analyst_node, news_analyst_node, fundamentals_analyst_node)
+from base_workflow.graph.state import AgentState
 from base_workflow.nodes import trader_node
 
 
@@ -29,7 +29,7 @@ llm = ChatOpenAI(model="gpt-4o")
 
 workflow = StateGraph(AgentState)
 
-workflow.add_node("market_analyst", market_analyst_node)
+workflow.add_node("market_analyst", technical_analyst_node)
 workflow.add_node("social_media_analyst", social_media_analyst_node)
 workflow.add_node("news_analyst", news_analyst_node)
 workflow.add_node("fundamentals_analyst", fundamentals_analyst_node)

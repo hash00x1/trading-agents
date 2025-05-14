@@ -2,7 +2,7 @@ from base_workflow.agents.debate_agent import DialogueAgentWithTools, DialogueSi
 from typing import List
 from langchain_openai import ChatOpenAI
 from base_workflow.agents import aggressive_risk_manager, conservative_risk_manager, neutral_risk_manager
-from base_workflow.state import AgentState
+from base_workflow.graph.state import AgentState
 
 
 llm = ChatOpenAI(model='gpt-4o-mini', temperature=0.7)

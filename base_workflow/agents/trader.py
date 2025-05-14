@@ -3,7 +3,7 @@ from base_workflow.agents.debate_agent import DialogueAgentWithTools, DialogueSi
 from base_workflow.agents import bearish_researcher, bullish_researcher
 from typing import List
 from langchain_openai import ChatOpenAI
-from base_workflow.state import AgentState
+from base_workflow.graph.state import AgentState
 
 
 llm = ChatOpenAI(model='gpt-4o-mini', temperature=0.7)

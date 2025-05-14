@@ -9,7 +9,7 @@ from langchain.schema import (
 from langchain_openai import ChatOpenAI
 
 from langchain.agents import Agent, AgentType, initialize_agent, load_tools
-from base_workflow.state import AgentState
+from base_workflow.graph.state import AgentState
 from operator import add
 
 # For refering use: define agent state

@@ -5,7 +5,7 @@ from base_workflow.agents import fundamentals_analyst
 from langgraph.types import Send, Command
 # from langgraph.graph import MessagesState
 from typing import Literal
-from base_workflow.state import AgentState
+from base_workflow.graph.state import AgentState
 
     
 def fundamentals_analyst_node(state: AgentState) -> Command[Literal['trader']]:
