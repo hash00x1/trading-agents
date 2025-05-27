@@ -7,7 +7,7 @@ import math
 
 from langchain_core.messages import HumanMessage
 
-from graph.state import AgentState, show_agent_reasoning
+from graph.state import AgentState
 
 import json
 import pandas as pd
@@ -17,66 +17,47 @@ from tools.api import get_prices, prices_to_df
 from utils.progress import progress
 
 
-technical_analyst_system_message = """
-You are a Market Analyst Agent in a multi-agent financial analysis system.
-
-Your role is to evaluate historical price movements, chart patterns, and trading volume using technical indicators. Your objective is to forecast potential future price action and assist in identifying optimal entry and exit points for trades.
-
-## Tasks:
-- Calculate and interpret relevant technical indicators, such as:
-  - Moving Average Convergence Divergence (MACD)
-  - Relative Strength Index (RSI)
-  - Simple and Exponential Moving Averages (SMA/EMA)
-  - Bollinger Bands
-  - Volume trends
-  - Support and resistance levels
-- Identify bullish or bearish price patterns (e.g., head and shoulders, double top/bottom, cup and handle).
-- Detect momentum shifts, overbought/oversold signals, or breakout setups.
-- Adjust indicator parameters to fit asset-specific characteristics (e.g., volatility, trading volume).
-- Suggest potential entry/exit timing based on technical signals.
-
-## Output Format (structured):
-{
-  "Asset": "<e.g., TSLA, AAPL, SPY>",
-  "Key Indicators": {
-    "MACD": "<e.g., Bullish crossover, Neutral>",
-    "RSI": "<value> (<Overbought | Oversold | Neutral>)",
-    "SMA_50 vs SMA_200": "<Golden Cross | Death Cross | Neutral>",
-    "Volume Trend": "<Increasing | Decreasing | Stable>"
-  },
-  "Chart Patterns": ["Double Bottom", "Bullish Flag"],
-  "Support Levels": [<price1>, <price2>],
-  "Resistance Levels": [<price1>, <price2>],
-  "Signal Summary": "<Brief summary of signals and their implications>",
-  "Actionable Insight": "Consider Entry | Watchlist | Take Profit | Avoid Entry"
-}
-
-## Constraints:
-- Do not use fundamental data or news events.
-- Focus exclusively on historical price action, volume, and chart-derived indicators.
-- Avoid speculative commentary not supported by patterns or indicator values.
-- Be concise and structured — your insights are used to support trade timing decisions.
-
-Think like a market technician with a disciplined, pattern-based trading mindset. Prioritize signal clarity and interpretability.
-"""
-llm = ChatOpenAI(model='gpt-4o-mini')
-technical_analyst_tools = [tavily_search]
-technical_analyst = create_react_agent(
-	llm,
-	tools=technical_analyst_tools,
-	state_modifier=technical_analyst_system_message,
-)
-
-
 ##### Technical Analyst #####
+# Explanation of the indicators used by the technical analysis agent:
+# Trend Following: 
+# Moving average convergence/divergence (MACD) is a trend-following momentum indicator that 
+# shows the relationship between two exponential moving averages (EMAs) of a security’s price
+# macd: price trends, measure trend momentum, and identify entry points for buying or selling
+# check macd in crypto= 12-Period EMA − 26-Period EMA
+
+# Momentom: （RSI）
+# The Relative Strength Index RSI is one of the most popular tools for measuring the short-term momentum of the market. 
+# It indicates a cryptocurrency’s recent trading strength by measuring the pace and direction of recent price moves.
+
+# Volatility Analysis:
+# volatility is a category of indicators that serve to measure the price's fluctuation within a specific time frame
+# These indicators are invaluable tools that help to determine when a market becomes more volatile, 
+# signaling increased trading activity and potential opportunities.
+
+# Bollinger Bands
+# Bollinger bands come in pairs and look like curvy lines that sit two standard deviations above and below the moving average on a trading chart. 
+# In this context, standard deviation is the measure of an asset’s movement away from its average price. 
+
+# The Average True Range (ATR) is a volatility indicator depicted as a line at the bottom of the chart. 
+# When it starts to rise, it indicates increased market volatility, while low volatility keeps it closer to the 0 level.
+# On Cryptohopper, we've incorporated the Exponential Moving Average (EMA) into the ATR indicator. 
+# This modified ATR sends a buy signal when it's above the EMA and a sell signal when it's below the EMA.
+
+
+# TODOS:
+# Pattern Recognition can be added later.
+
+
+
+
 def technical_analyst_agent(state: AgentState):
     """
     Sophisticated technical analysis system that combines multiple trading strategies for multiple tickers:
-    1. Trend Following
+    1. Trend Following / overlap study indicators
     2. Mean Reversion
-    3. Momentum
-    4. Volatility Analysis
-    5. Statistical Arbitrage Signals
+    3. Momentum / momentum indicators
+    4. Volatility Analysis /Volatility indicators
+    5. Statistical Arbitrage Signals 
     """
     data = state["data"]
     start_date = data["start_date"]
@@ -316,7 +297,7 @@ def calculate_momentum_signals(prices_df):
         },
     }
 
-
+# TODO: change this to suit crypto volatility analysis
 def calculate_volatility_signals(prices_df):
     """
     Volatility-based trading strategy
@@ -363,7 +344,7 @@ def calculate_volatility_signals(prices_df):
         },
     }
 
-
+# TODO: change to pattern recognition
 def calculate_stat_arb_signals(prices_df):
     """
     Statistical arbitrage signals based on price action analysis
@@ -451,6 +432,7 @@ def normalize_pandas(obj):
     return obj
 
 
+# rsi calculation function
 def calculate_rsi(prices_df: pd.DataFrame, period: int = 14) -> pd.Series:
     delta = prices_df["close"].diff()
     gain = (delta.where(delta > 0, 0)).fillna(0)
@@ -563,3 +545,5 @@ def calculate_hurst_exponent(price_series: pd.Series, max_lag: int = 20) -> floa
     except (ValueError, RuntimeWarning):
         # Return 0.5 (random walk) if calculation fails
         return 0.5
+
+if __name__ == "__main__":

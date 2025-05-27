@@ -1,8 +1,18 @@
 import san
-data = san.get("daily_active_addresses",
-    slug="bitcoin",
-    from_date="2024-01-01",
-    to_date="2024-01-31",
-    interval="1d")
+import pandas as pd
 
-print(data)
+result_1  = san.get(
+    "ohlcv/santiment",
+    from_date="2018-06-01",
+    to_date="2018-06-05",
+    interval="1d"
+)
+result_2 = san.get(
+    "price_usd",
+    slug="bitcoin",
+    from_date="2024-05-01",
+    to_date="2024-05-20",
+    interval="1d"
+)
+print(result_1)
+print(result_2)
