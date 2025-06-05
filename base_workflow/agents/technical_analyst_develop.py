@@ -6,16 +6,15 @@ from base_workflow.tools import (
 import math
 
 from langchain_core.messages import HumanMessage
-
-from graph.state import AgentState
+# add show_agent_reasoning later
+from base_workflow.graph.state import AgentState
 
 import json
 import pandas as pd
 import numpy as np
 
-from tools.api import get_prices, prices_to_df
-from utils.progress import progress
-
+from base_workflow.tools.api import get_prices, prices_to_df
+from base_workflow.utils.progress import progress
 
 ##### Technical Analyst #####
 # Explanation of the indicators used by the technical analysis agent:
@@ -44,24 +43,20 @@ from utils.progress import progress
 # This modified ATR sends a buy signal when it's above the EMA and a sell signal when it's below the EMA.
 
 
-# TODOS:
-# Pattern Recognition can be added later.
-
-
-
-
 def technical_analyst_agent(state: AgentState):
+
     """
     Sophisticated technical analysis system that combines multiple trading strategies for multiple tickers:
     1. Trend Following / overlap study indicators
     2. Mean Reversion
     3. Momentum / momentum indicators
-    4. Volatility Analysis /Volatility indicators
+    4. Volatility Analysis / Volatility indicators
     5. Statistical Arbitrage Signals 
     """
     data = state["data"]
     start_date = data["start_date"]
     end_date = data["end_date"]
+    interval = data["time_interval"]
     tickers = data["tickers"]
 
     # Initialize analysis for each ticker
@@ -75,6 +70,7 @@ def technical_analyst_agent(state: AgentState):
             ticker=ticker,
             start_date=start_date,
             end_date=end_date,
+            time_interval=interval
         )
 
         if not prices:
@@ -83,7 +79,7 @@ def technical_analyst_agent(state: AgentState):
 
         # Convert prices to a DataFrame
         prices_df = prices_to_df(prices)
-
+        # print (prices_df)
         progress.update_status("technical_analyst_agent", ticker, "Calculating trend signals")
         trend_signals = calculate_trend_signals(prices_df)
 
@@ -160,16 +156,17 @@ def technical_analyst_agent(state: AgentState):
         name="technical_analyst_agent",
     )
 
-    if state["metadata"]["show_reasoning"]:
-        show_agent_reasoning(technical_analysis, "Technical Analyst")
+    # if state["metadata"]["show_reasoning"]:
+    #     show_agent_reasoning(technical_analysis, "Technical Analyst")
 
-    # Add the signal to the analyst_signals list
-    state["data"]["analyst_signals"]["technical_analyst_agent"] = technical_analysis
+    # # Add the signal to the analyst_signals list
+    # state["data"]["analyst_signals"]["technical_analyst_agent"] = technical_analysis
 
     return {
         "messages": state["messages"] + [message],
         "data": data,
     }
+
 
 
 def calculate_trend_signals(prices_df):
@@ -297,7 +294,7 @@ def calculate_momentum_signals(prices_df):
         },
     }
 
-# TODO: change this to suit crypto volatility analysis
+
 def calculate_volatility_signals(prices_df):
     """
     Volatility-based trading strategy
@@ -344,7 +341,7 @@ def calculate_volatility_signals(prices_df):
         },
     }
 
-# TODO: change to pattern recognition
+
 def calculate_stat_arb_signals(prices_df):
     """
     Statistical arbitrage signals based on price action analysis
@@ -383,7 +380,7 @@ def calculate_stat_arb_signals(prices_df):
         },
     }
 
-
+# in the future, this could be decided by the bearish and bullish researcher team.
 def weighted_signal_combination(signals, weights):
     """
     Combines multiple trading signals using a weighted approach
@@ -432,7 +429,6 @@ def normalize_pandas(obj):
     return obj
 
 
-# rsi calculation function
 def calculate_rsi(prices_df: pd.DataFrame, period: int = 14) -> pd.Series:
     delta = prices_df["close"].diff()
     gain = (delta.where(delta > 0, 0)).fillna(0)
@@ -523,9 +519,9 @@ def calculate_atr(df: pd.DataFrame, period: int = 14) -> pd.Series:
 def calculate_hurst_exponent(price_series: pd.Series, max_lag: int = 20) -> float:
     """
     Calculate Hurst Exponent to determine long-term memory of time series
-    H < 0.5: Mean reverting series
-    H = 0.5: Random walk
-    H > 0.5: Trending series
+    H < 0.5: Anti-persistent, mean reverting series. 
+    H = 0.5: No long-term correlation, random walk
+    H > 0.5: Persistent, trending series
 
     Args:
         price_series: Array-like price data
@@ -545,5 +541,20 @@ def calculate_hurst_exponent(price_series: pd.Series, max_lag: int = 20) -> floa
     except (ValueError, RuntimeWarning):
         # Return 0.5 (random walk) if calculation fails
         return 0.5
-
+    
 if __name__ == "__main__":
+    # Test the technical analyst agent with dummy data
+    test_state = AgentState(
+        messages=[],
+        data={
+            "tickers": ["ohlcv/bitcoin" ],
+            "start_date": "2023-01-01",
+            "end_date": "2023-10-01",
+            "time_interval": "1d",
+        },
+        metadata={"show_reasoning": False},
+    )
+
+    # Run the agent
+    result = technical_analyst_agent(test_state)
+    print(result)
