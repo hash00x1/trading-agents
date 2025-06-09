@@ -1,47 +1,124 @@
-from langchain_openai import ChatOpenAI
-from langgraph.prebuilt import create_react_agent
-from base_workflow.tools import (
-    tavily_search
-)
+from langchain_core.messages import HumanMessage
+from graph.state import AgentState, show_agent_reasoning
+from utils.progress import progress
+import pandas as pd
+import numpy as np
+import json
 
-news_analyst_system_message = """
-You are a News Analyst Agent in a multi-agent financial analysis system.
+from tools.api import get_insider_trades, get_company_news
 
-Your role is to monitor and analyze financial news, macroeconomic announcements, and geopolitical events. Your goal is to identify news-driven catalysts that could impact overall market dynamics or specific companies/stocks in the short or medium term.
 
-## Tasks:
-- Analyze news headlines, full articles, press releases, and official government or central bank announcements.
-- Identify impactful macroeconomic indicators (e.g., interest rate changes, inflation data, employment reports).
-- Monitor global events (e.g., conflicts, pandemics, regulatory changes, trade policies).
-- Detect significant company-specific news (e.g., leadership changes, product launches, legal issues).
-- Assess the potential **market impact** of each event: high, medium, or low.
-- Classify each news item as likely to trigger a positive, negative, or neutral market reaction.
+##### Financial News Sentiment Agent #####
+# FinBERT (yiyanghkust) based for financial news#
+def news_sentiment_agent(state: AgentState):
+    """Analyzes market sentiment and generates trading signals for multiple tickers."""
+    # data = state.get("data", {})
+    # end_date = data.get("end_date")
+    # tickers = data.get("tickers")
+    data = state["data"]
+    start_date = data["start_date"]
+    end_date = data["end_date"]
+    interval = data["time_interval"]
+    tickers = data["tickers"]
 
-## Output Format (structured):
-{
-  "News Title": "<Headline>",
-  "Source": "<e.g., Bloomberg, Reuters>",
-  "Date": "<YYYY-MM-DD>",
-  "Event Type": "Macroeconomic | Geopolitical | Company-Specific | Other",
-  "Summary": "<Brief summary of the event>",
-  "Potential Market Impact": "High | Medium | Low",
-  "Expected Direction": "Positive | Negative | Neutral",
-  "Affected Assets or Sectors": "<List of relevant companies, sectors, or indices>",
-  "Rationale": "<2–3 sentence explanation of why this event is likely to affect the market and in what way>"
-}
+    # Initialize news sentiment analysis for each ticker
+    news_sentiment_analysis = {}
 
-## Constraints:
-- Do not use outdated or irrelevant news.
-- Focus on events with potential to influence stock prices or sector performance.
-- Be concise, neutral, and evidence-based in your assessments.
-- Do not generate speculative content beyond what can be inferred from the news.
+    for ticker in tickers:
+        # progress.update_status("sentiment_agent", ticker, "Fetching insider trades")
 
-Think like a Bloomberg news analyst with experience in interpreting financial and economic developments. Be timely, structured, and insightful in your analysis.
-"""
-llm = ChatOpenAI(model='gpt-4o-mini')
-news_analyst_tools = [tavily_search]
-news_analyst = create_react_agent(
-	llm,
-	tools=news_analyst_tools,
-	state_modifier=news_analyst_system_message,
-)
+        # Get the insider trades
+        # insider_trades = get_insider_trades(
+        #     ticker=ticker,
+        #     end_date=end_date,
+        #     limit=1000,
+        # )
+
+        progress.update_status("news_sentiment_agent", ticker, "Fetching crypto news")
+
+        # Get the signals from the insider trades
+        transaction_shares = pd.Series([t.transaction_shares for t in insider_trades]).dropna()
+        insider_signals = np.where(transaction_shares < 0, "bearish", "bullish").tolist()
+
+        progress.update_status("sentiment_agent", ticker, "Fetching company news")
+
+        # Get the company news
+        company_news = get_company_news(ticker, end_date, limit=100)
+
+        # Get the sentiment from the company news
+        sentiment = pd.Series([n.sentiment for n in company_news]).dropna()
+        news_signals = np.where(sentiment == "negative", "bearish", 
+                              np.where(sentiment == "positive", "bullish", "neutral")).tolist()
+        
+        progress.update_status("sentiment_agent", ticker, "Combining signals")
+        # Combine signals from both sources with weights
+        insider_weight = 0.3
+        news_weight = 0.7
+        
+        # Calculate weighted signal counts
+        bullish_signals = (
+            insider_signals.count("bullish") * insider_weight +
+            news_signals.count("bullish") * news_weight
+        )
+        bearish_signals = (
+            insider_signals.count("bearish") * insider_weight +
+            news_signals.count("bearish") * news_weight
+        )
+
+        if bullish_signals > bearish_signals:
+            overall_signal = "bullish"
+        elif bearish_signals > bullish_signals:
+            overall_signal = "bearish"
+        else:
+            overall_signal = "neutral"
+
+        # Calculate confidence level based on the weighted proportion
+        total_weighted_signals = len(insider_signals) * insider_weight + len(news_signals) * news_weight
+        confidence = 0  # Default confidence when there are no signals
+        if total_weighted_signals > 0:
+            confidence = round(max(bullish_signals, bearish_signals) / total_weighted_signals, 2) * 100
+        reasoning = f"Weighted Bullish signals: {bullish_signals:.1f}, Weighted Bearish signals: {bearish_signals:.1f}"
+
+        news_sentiment_analysis[ticker] = {
+            "signal": overall_signal,
+            "confidence": confidence,
+            "reasoning": reasoning,
+        }
+
+        progress.update_status("sentiment_agent", ticker, "Done")
+
+    # Create the sentiment message
+    message = HumanMessage(
+        content=json.dumps(news_sentiment_analysis),
+        name="sentiment_agent",
+    )
+
+    # Print the reasoning if the flag is set
+    if state["metadata"]["show_reasoning"]:
+        show_agent_reasoning(news_sentiment_analysis, "Sentiment Analysis Agent")
+
+    # Add the signal to the analyst_signals list
+    state["data"]["analyst_signals"]["sentiment_agent"] = news_sentiment_analysis
+
+    return {
+        "messages": [message],
+        "data": data,
+    }
+
+
+if __name__ == "__main__":
+    # Test the technical analyst agent with dummy data
+    test_state = AgentState(
+        messages=[],
+        data={
+            "tickers": ["ohlcv/bitcoin" ],
+            "start_date": "2023-01-01",
+            "end_date": "2023-10-01",
+            "time_interval": "1d",
+        },
+        metadata={"show_reasoning": False},
+    )
+
+    # Run the agent
+    result = news_sentiment_agent(test_state)
+    print(result)

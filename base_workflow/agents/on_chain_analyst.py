@@ -1,57 +1,122 @@
-from langchain_openai import ChatOpenAI
-from langgraph.prebuilt import create_react_agent
-from base_workflow.tools import (
-    tavily_search
-)
+from langchain_core.messages import HumanMessage
+from graph.state import AgentState, show_agent_reasoning
+from utils.progress import progress
+import json
 
-fundamentals_analyst_system_message = """
-You are a Fundamental Analyst Agent in a multi-agent stock analysis system.
+from tools.api import get_financial_metrics
 
-Your role is to analyze the intrinsic value of publicly traded companies using fundamental analysis. You rely solely on objective, company-level financial data and macroeconomic context. Your goal is to identify undervalued, overvalued, or fairly valued stocks, and provide long-term investment insights.
+#### On-Chain Data Analyst Agent #####
+# NO BASE, ABSOLUTELY MY OWN WORK ###
+# Analyzes on-chain metrics like active addresses, SOPR, transaction volume, whale behavior.
+# Generates a trading signal (bullish, bearish, neutral) for each cryptocurrency
+# Provides human-readable reasoning and a confidence score
 
-## Tasks:
-- Analyze financial statements: income statement, balance sheet, and cash flow statement.
-- Review earnings reports and filings (10-K, 10-Q).
-- Interpret insider trading activity (buying/selling by executives or directors).
-- Compute and evaluate financial ratios:
-  - Price-to-Earnings (P/E)
-  - Price-to-Book (P/B)
-  - Return on Equity (ROE)
-  - Debt-to-Equity (D/E)
-  - Free Cash Flow (FCF)
-- Consider industry outlook, business model quality, and macroeconomic relevance.
-- Estimate intrinsic value using standard methods (e.g., Discounted Cash Flow).
-- Generate a recommendation: Buy, Sell, or Hold.
+def onchain_data_analyst_agent(state: AgentState):
+    """Analyzes on-chain data using Santiment and generates trading signals."""
+    data = state["data"]
+    end_date = data["end_date"]
+    tickers = data["tickers"]
 
-## Output Format (structured):
-{
-  "Company": "<Name and Ticker>",
-  "Valuation Summary": "<Brief explanation of valuation method and rationale>",
-  "Key Financial Indicators": {
-    "P/E": <value>,
-    "P/B": <value>,
-    "ROE": <value>,
-    "D/E": <value>,
-    "FCF": <value>
-  },
-  "Intrinsic Value Estimate": <numeric value>,
-  "Current Market Price": <numeric value>,
-  "Valuation Status": "Undervalued | Overvalued | Fairly Valued",
-  "Recommendation": "Buy | Sell | Hold",
-  "Supporting Analysis": "<2–4 sentence justification referencing the above data>"
-}
+    onchain_analysis = {}
 
-## Constraints:
-- Do not use technical indicators or recent market sentiment.
-- Do not speculate on short-term stock movements.
-- Stay factual, explain assumptions, and avoid vague language.
+    for ticker in tickers:
+        progress.update_status("onchain_agent", ticker, "Fetching on-chain metrics")
 
-Think like a CFA-certified financial analyst. Be structured, data-driven, and explain your reasoning clearly.
-"""
-llm = ChatOpenAI(model='gpt-4o-mini')
-fundamentals_analyst_tools = [tavily_search]
-fundamentals_analyst = create_react_agent(
-	llm,
-	tools=fundamentals_analyst_tools,
-	state_modifier=fundamentals_analyst_system_message,
-)
+        # 1. 获取 Santiment 的链上数据（您需要对接 santiment API）
+        metrics = get_santiment_onchain_metrics(ticker, end_date)
+
+        if not metrics:
+            progress.update_status("onchain_agent", ticker, "Failed: No on-chain metrics found")
+            continue
+
+        signals = []
+        reasoning = {}
+
+        # 2. 活跃地址分析（活跃用户越多越 bullish）
+        active_addresses = metrics.get("active_addresses")
+        new_addresses = metrics.get("new_addresses")
+        if active_addresses and active_addresses > metrics.get("active_avg_30d", 0) * 1.2:
+            signals.append("bullish")
+        elif active_addresses and active_addresses < metrics.get("active_avg_30d", 0) * 0.8:
+            signals.append("bearish")
+        else:
+            signals.append("neutral")
+        reasoning["active_addresses_signal"] = {
+            "signal": signals[-1],
+            "details": f"Active: {active_addresses}, 30D Avg: {metrics.get('active_avg_30d')}",
+        }
+
+        # 3. SOPR 分析
+        sopr = metrics.get("sopr")
+        if sopr and sopr > 1.02:
+            signals.append("bullish")
+        elif sopr and sopr < 0.98:
+            signals.append("bearish")
+        else:
+            signals.append("neutral")
+        reasoning["sopr_signal"] = {
+            "signal": signals[-1],
+            "details": f"SOPR: {sopr}",
+        }
+
+        # 4. 交易量分析
+        tx_volume = metrics.get("transaction_volume")
+        if tx_volume and tx_volume > metrics.get("volume_avg_30d", 0) * 1.5:
+            signals.append("bullish")
+        elif tx_volume and tx_volume < metrics.get("volume_avg_30d", 0) * 0.7:
+            signals.append("bearish")
+        else:
+            signals.append("neutral")
+        reasoning["tx_volume_signal"] = {
+            "signal": signals[-1],
+            "details": f"Tx Volume: {tx_volume}, 30D Avg: {metrics.get('volume_avg_30d')}",
+        }
+
+        # 5. 鲸鱼地址行为（增加持仓通常 bullish）
+        whale_balance_change = metrics.get("whale_balance_change")
+        if whale_balance_change and whale_balance_change > 0:
+            signals.append("bullish")
+        elif whale_balance_change and whale_balance_change < 0:
+            signals.append("bearish")
+        else:
+            signals.append("neutral")
+        reasoning["whale_signal"] = {
+            "signal": signals[-1],
+            "details": f"Whale Balance Change: {whale_balance_change}",
+        }
+
+        progress.update_status("onchain_agent", ticker, "Calculating final signal")
+        bullish_signals = signals.count("bullish")
+        bearish_signals = signals.count("bearish")
+
+        if bullish_signals > bearish_signals:
+            overall_signal = "bullish"
+        elif bearish_signals > bullish_signals:
+            overall_signal = "bearish"
+        else:
+            overall_signal = "neutral"
+
+        confidence = round(max(bullish_signals, bearish_signals) / len(signals), 2) * 100
+
+        onchain_analysis[ticker] = {
+            "signal": overall_signal,
+            "confidence": confidence,
+            "reasoning": reasoning,
+        }
+
+        progress.update_status("onchain_agent", ticker, "Done")
+
+    message = HumanMessage(
+        content=json.dumps(onchain_analysis),
+        name="onchain_data_analyst_agent",
+    )
+
+    if state["metadata"]["show_reasoning"]:
+        show_agent_reasoning(onchain_analysis, "On-Chain Data Analyst Agent")
+
+    state["data"]["analyst_signals"]["onchain_data_analyst_agent"] = onchain_analysis
+
+    return {
+        "messages": [message],
+        "data": data,
+    }

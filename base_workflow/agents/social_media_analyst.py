@@ -1,51 +1,112 @@
-from langchain_openai import ChatOpenAI
-from langgraph.prebuilt import create_react_agent
+from langchain_core.messages import HumanMessage
+from graph.state import AgentState, show_agent_reasoning
+from utils.progress import progress
+import pandas as pd
+import numpy as np
+import json
 
-from base_workflow.tools import (
-	ask_user,
-	execute_python,
-	get_available_cities,
-    tavily_search
-)
+from tools.api import get_insider_trades, get_company_news
 
-social_media_analyst_system_message = """
-You are a Social Media Analyst Agent in a multi-agent financial analysis system.
 
-Your role is to process large volumes of social media content and sentiment scores derived from public data. Your objective is to identify crowd sentiment, emotional tone, and collective investor behavior that could influence stock prices in the short term.
+##### Social Media Sentiment Agent #####
+# getting the sentiment scores of three main media Telegram, Twitter and YouTube from santiment API #
+# Sentiment Analysis
+# Calculate a weighted sentiment score (sentiment_score) by aggregating sentiment data from Telegram, Twitter, and YouTube
+# Social Volume analysis
+# combine the discussion volume (volume_score) from Telegram, Twitter, and YouTube. A higher discussion volume typically 
+# indicates increased market interest in an asset, which could be a precursor to price fluctuations
+# Trading SIgnal Generation
+# based on the sentiment_score and volume_score, generate a trading signal (bullish, bearish, neutral)
 
-## Tasks:
-- Collect and analyze posts from platforms such as Twitter, Reddit (e.g., r/WallStreetBets), and StockTwits.
-- Detect spikes in discussion volume or sudden shifts in sentiment around specific tickers.
-- Interpret real-time sentiment scores from APIs or tools if available.
-- Track viral trends, hashtags, memes, or influential figures that may drive investor attention.
-- Assess investor mood as reflected in emotional tone, urgency, or polarization.
-- Predict possible short-term stock movements influenced by the observed sentiment.
 
-## Output Format (structured):
-{
-  "Ticker or Topic": "<e.g., TSLA, GME, SPY>",
-  "Sentiment Polarity": "Positive | Negative | Neutral",
-  "Sentiment Strength": "Strong | Moderate | Weak",
-  "Trending Keywords or Hashtags": ["#buythedip", "#GME", "#diamondhands"],
-  "Influential Accounts or Posts": ["<Brief quote or source handle>"],
-  "Discussion Volume Change": "<e.g., +150% in 24h>",
-  "Potential Impact on Price": "Upward | Downward | Sideways",
-  "Market Impact Level": "High | Medium | Low",
-  "Summary": "<2–3 sentence summary explaining observed sentiment and predicted effect on short-term stock price>"
-}
 
-## Constraints:
-- Do not rely on outdated, irrelevant, or low-engagement posts.
-- Avoid technical or fundamental analysis — your focus is behavioral sentiment only.
-- Do not fabricate data — always ground predictions in observable public social activity.
-- Focus on short-term investor psychology and sentiment-driven volatility.
+def social_media_agent(state: AgentState):
+    """Analyzes market sentiment and generates trading signals for multiple tickers."""
+    data = state.get("data", {})
+    end_date = data.get("end_date")
+    tickers = data.get("tickers")
 
-Think like a social data analyst with expertise in finance and viral trends. Be timely, sharp, and grounded in real social signals.
-"""
-llm = ChatOpenAI(model='gpt-4o-mini')
-social_media_analyst_tools = [tavily_search]
-social_media_analyst = create_react_agent(
-	llm,
-	tools=social_media_analyst_tools,
-	state_modifier=social_media_analyst_system_message,
-)
+    # Initialize sentiment analysis for each ticker
+    sentiment_analysis = {}
+
+    for ticker in tickers:
+        progress.update_status("social_media_sentiment_agent", ticker, "Fetching Sentiment Scores from Telegram, Twitter, and YouTube")
+
+        # Get the Sentiment Scores from Telegram, Twitter, and YouTube
+        
+        insider_trades = get_insider_trades(
+            ticker=ticker,
+            end_date=end_date,
+            limit=1000,
+        )
+        # Get the Social Volume analysis from Telegram, Twitter and Youtube
+        progress.update_status("social_media_sentiment_agent", ticker, "Analyzing Sentiment Scores")
+
+        # Get the signals from the insider trades
+        transaction_shares = pd.Series([t.transaction_shares for t in insider_trades]).dropna()
+        insider_signals = np.where(transaction_shares < 0, "bearish", "bullish").tolist()
+
+        progress.update_status("social_media_sentiment_agent", ticker, "Fetching company news")
+
+        # Get the company news
+        company_news = get_company_news(ticker, end_date, limit=100)
+
+        # Get the sentiment from the company news
+        sentiment = pd.Series([n.sentiment for n in company_news]).dropna()
+        news_signals = np.where(sentiment == "negative", "bearish", 
+                              np.where(sentiment == "positive", "bullish", "neutral")).tolist()
+        
+        progress.update_status("sentiment_agent", ticker, "Combining signals")
+        # Combine signals from both sources with weights
+        insider_weight = 0.3
+        news_weight = 0.7
+        
+        # Calculate weighted signal counts
+        bullish_signals = (
+            insider_signals.count("bullish") * insider_weight +
+            news_signals.count("bullish") * news_weight
+        )
+        bearish_signals = (
+            insider_signals.count("bearish") * insider_weight +
+            news_signals.count("bearish") * news_weight
+        )
+
+        if bullish_signals > bearish_signals:
+            overall_signal = "bullish"
+        elif bearish_signals > bullish_signals:
+            overall_signal = "bearish"
+        else:
+            overall_signal = "neutral"
+
+        # Calculate confidence level based on the weighted proportion
+        total_weighted_signals = len(insider_signals) * insider_weight + len(news_signals) * news_weight
+        confidence = 0  # Default confidence when there are no signals
+        if total_weighted_signals > 0:
+            confidence = round(max(bullish_signals, bearish_signals) / total_weighted_signals, 2) * 100
+        reasoning = f"Weighted Bullish signals: {bullish_signals:.1f}, Weighted Bearish signals: {bearish_signals:.1f}"
+
+        sentiment_analysis[ticker] = {
+            "signal": overall_signal,
+            "confidence": confidence,
+            "reasoning": reasoning,
+        }
+
+        progress.update_status("sentiment_agent", ticker, "Done")
+
+    # Create the sentiment message
+    message = HumanMessage(
+        content=json.dumps(sentiment_analysis),
+        name="sentiment_agent",
+    )
+
+    # Print the reasoning if the flag is set
+    if state["metadata"]["show_reasoning"]:
+        show_agent_reasoning(sentiment_analysis, "Sentiment Analysis Agent")
+
+    # Add the signal to the analyst_signals list
+    state["data"]["analyst_signals"]["sentiment_agent"] = sentiment_analysis
+
+    return {
+        "messages": [message],
+        "data": data,
+    }

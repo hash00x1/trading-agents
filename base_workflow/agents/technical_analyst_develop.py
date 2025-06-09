@@ -67,7 +67,7 @@ def technical_analyst_agent(state: AgentState):
 
         # Get the historical price data
         prices = get_prices(
-            ticker=ticker,
+            slug=ticker,
             start_date=start_date,
             end_date=end_date,
             time_interval=interval

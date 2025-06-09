@@ -14,7 +14,22 @@ class PriceResponse(BaseModel):
     ticker: str
     prices: list[Price]
 
+class SocialSentimentScoreValue(BaseModel):
+    time: str
+    value: float
 
+class SocialSentimentScoreResponse(BaseModel):
+    ticker: str
+    dominance_values: list[SocialSentimentScoreValue]
+
+class SocialDominanceValue(BaseModel):
+    time: str
+    value: float
+
+class SocialDominanceResponse(BaseModel):
+    ticker: str
+    dominance_values: list[SocialDominanceValue]
+    
 class FinancialMetrics(BaseModel):
     ticker: str
     report_period: str
