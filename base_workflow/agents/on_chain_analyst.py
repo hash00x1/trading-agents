@@ -22,19 +22,18 @@ def onchain_data_analyst_agent(state: AgentState):
     for ticker in tickers:
         progress.update_status("onchain_agent", ticker, "Fetching on-chain metrics")
 
-        # 1. 获取 Santiment 的链上数据（您需要对接 santiment API）
-        metrics = get_santiment_onchain_metrics(ticker, end_date)
+        # # 1. 获取 Santiment 的链上数据（您需要对接 santiment API）
+        # metrics = get_santiment_onchain_metrics(ticker, end_date)
 
-        if not metrics:
-            progress.update_status("onchain_agent", ticker, "Failed: No on-chain metrics found")
-            continue
+        # if not metrics:
+        #     progress.update_status("onchain_agent", ticker, "Failed: No on-chain metrics found")
+        #     continue
 
         signals = []
         reasoning = {}
 
         # 2. 活跃地址分析（活跃用户越多越 bullish）
         active_addresses = metrics.get("active_addresses")
-        new_addresses = metrics.get("new_addresses")
         if active_addresses and active_addresses > metrics.get("active_avg_30d", 0) * 1.2:
             signals.append("bullish")
         elif active_addresses and active_addresses < metrics.get("active_avg_30d", 0) * 0.8:
@@ -46,31 +45,31 @@ def onchain_data_analyst_agent(state: AgentState):
             "details": f"Active: {active_addresses}, 30D Avg: {metrics.get('active_avg_30d')}",
         }
 
-        # 3. SOPR 分析
-        sopr = metrics.get("sopr")
-        if sopr and sopr > 1.02:
-            signals.append("bullish")
-        elif sopr and sopr < 0.98:
-            signals.append("bearish")
-        else:
-            signals.append("neutral")
-        reasoning["sopr_signal"] = {
-            "signal": signals[-1],
-            "details": f"SOPR: {sopr}",
-        }
+        # # 3. SOPR 分析
+        # sopr = metrics.get("sopr")
+        # if sopr and sopr > 1.02:
+        #     signals.append("bullish")
+        # elif sopr and sopr < 0.98:
+        #     signals.append("bearish")
+        # else:
+        #     signals.append("neutral")
+        # reasoning["sopr_signal"] = {
+        #     "signal": signals[-1],
+        #     "details": f"SOPR: {sopr}",
+        # }
 
-        # 4. 交易量分析
-        tx_volume = metrics.get("transaction_volume")
-        if tx_volume and tx_volume > metrics.get("volume_avg_30d", 0) * 1.5:
-            signals.append("bullish")
-        elif tx_volume and tx_volume < metrics.get("volume_avg_30d", 0) * 0.7:
-            signals.append("bearish")
-        else:
-            signals.append("neutral")
-        reasoning["tx_volume_signal"] = {
-            "signal": signals[-1],
-            "details": f"Tx Volume: {tx_volume}, 30D Avg: {metrics.get('volume_avg_30d')}",
-        }
+        # # 4. 交易量分析
+        # tx_volume = metrics.get("transaction_volume")
+        # if tx_volume and tx_volume > metrics.get("volume_avg_30d", 0) * 1.5:
+        #     signals.append("bullish")
+        # elif tx_volume and tx_volume < metrics.get("volume_avg_30d", 0) * 0.7:
+        #     signals.append("bearish")
+        # else:
+        #     signals.append("neutral")
+        # reasoning["tx_volume_signal"] = {
+        #     "signal": signals[-1],
+        #     "details": f"Tx Volume: {tx_volume}, 30D Avg: {metrics.get('volume_avg_30d')}",
+        # }
 
         # 5. 鲸鱼地址行为（增加持仓通常 bullish）
         whale_balance_change = metrics.get("whale_balance_change")

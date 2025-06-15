@@ -25,23 +25,6 @@ def news_sentiment_agent(state: AgentState):
     news_sentiment_analysis = {}
 
     for ticker in tickers:
-        # progress.update_status("sentiment_agent", ticker, "Fetching insider trades")
-
-        # Get the insider trades
-        # insider_trades = get_insider_trades(
-        #     ticker=ticker,
-        #     end_date=end_date,
-        #     limit=1000,
-        # )
-
-        progress.update_status("news_sentiment_agent", ticker, "Fetching crypto news")
-
-        # Get the signals from the insider trades
-        transaction_shares = pd.Series([t.transaction_shares for t in insider_trades]).dropna()
-        insider_signals = np.where(transaction_shares < 0, "bearish", "bullish").tolist()
-
-        progress.update_status("sentiment_agent", ticker, "Fetching company news")
-
         # Get the company news
         company_news = get_company_news(ticker, end_date, limit=100)
 

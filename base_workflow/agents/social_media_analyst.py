@@ -1,15 +1,22 @@
 from langchain_core.messages import HumanMessage
 from graph.state import AgentState, show_agent_reasoning
 from utils.progress import progress
+from datetime import datetime, timedelta
+
 import pandas as pd
 import numpy as np
 import json
 
-from tools.api import get_insider_trades, get_company_news
+from tools.api import (get_twitter_positive_sentiment_score, 
+                       get_twitter_negative_sentiment_score, 
+                       get_reddit_negative_sentiment_score, 
+                       get_reddit_positive_sentiment_score,
+                       get_telegram_positive_sentiment_score,
+                       get_telegram_negative_sentiment_score,)
 
 
 ##### Social Media Sentiment Agent #####
-# getting the sentiment scores of three main media Telegram, Twitter and YouTube from santiment API #
+# getting the sentiment scores of three main media Telegram, Twitter, Reddit from santiment API #
 # Sentiment Analysis
 # Calculate a weighted sentiment score (sentiment_score) by aggregating sentiment data from Telegram, Twitter, and YouTube
 # Social Volume analysis
@@ -20,43 +27,55 @@ from tools.api import get_insider_trades, get_company_news
 
 
 
-def social_media_agent(state: AgentState):
-    """Analyzes market sentiment and generates trading signals for multiple tickers."""
-    data = state.get("data", {})
-    end_date = data.get("end_date")
-    tickers = data.get("tickers")
+def sentiment_agent(state: AgentState):
+    """Analyzes market sentiment and generates trading signals for multiple slugs."""
+    # data = state.get("data", {})
+    # end_date = data.get("end_date")
+    # tickers = data.get("tickers")
+    slugs = ["bitcoin" ] # later add this to the main whole slug name used in santiment API
+    end_date = "2025-05-08"
+    end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+    start_dt = end_dt - timedelta(weeks=2)
+    start_date = start_dt.date().isoformat()
 
-    # Initialize sentiment analysis for each ticker
+    # Initialize sentiment analysis for each slug
     sentiment_analysis = {}
 
-    for ticker in tickers:
-        progress.update_status("social_media_sentiment_agent", ticker, "Fetching Sentiment Scores from Telegram, Twitter, and YouTube")
+    for slug in slugs:
+        progress.update_status("social_media_sentiment_agent", slug, "Fetching Sentiment Scores from Telegram, Twitter, and YouTube")
 
         # Get the Sentiment Scores from Telegram, Twitter, and YouTube
+        telegram_positive_sentiment_score = get_telegram_positive_sentiment_score(slug=slug, start_date=start_date, end_date=end_date)
+        telegram_negative_sentiment_score = get_telegram_negative_sentiment_score(slug=slug, start_date=start_date, end_date=end_date)
+        twitter_positive_sentiment_score = get_twitter_positive_sentiment_score(slug=slug, start_date=start_date, end_date=end_date)
+        twitter_negative_sentiment_score = get_twitter_negative_sentiment_score(slug=slug, start_date=start_date, end_date=end_date)
+        reddit_positive_sentiment_score = get_reddit_positive_sentiment_score(slug=slug, start_date=start_date, end_date=end_date)
+        reddit_negative_sentiment_score = get_reddit_negative_sentiment_score(slug=slug, start_date=start_date, end_date=end_date)
+        # Calculate the sentiment score
         
-        insider_trades = get_insider_trades(
-            ticker=ticker,
-            end_date=end_date,
-            limit=1000,
-        )
         # Get the Social Volume analysis from Telegram, Twitter and Youtube
-        progress.update_status("social_media_sentiment_agent", ticker, "Analyzing Sentiment Scores")
+        progress.update_status("social_media_sentiment_agent", slug, "Analyzing Sentiment Scores")
+
+        # set the weights for each source
+        social_media_weight = 0.4
+        news_weight = 0.6
+
 
         # Get the signals from the insider trades
         transaction_shares = pd.Series([t.transaction_shares for t in insider_trades]).dropna()
         insider_signals = np.where(transaction_shares < 0, "bearish", "bullish").tolist()
 
-        progress.update_status("social_media_sentiment_agent", ticker, "Fetching company news")
+        progress.update_status("social_media_sentiment_agent", slug, "Fetching company news")
 
-        # Get the company news
-        company_news = get_company_news(ticker, end_date, limit=100)
+        # Get the crypro news
+        company_news = get_company_news(slug, end_date, limit=100)
 
         # Get the sentiment from the company news
         sentiment = pd.Series([n.sentiment for n in company_news]).dropna()
         news_signals = np.where(sentiment == "negative", "bearish", 
                               np.where(sentiment == "positive", "bullish", "neutral")).tolist()
         
-        progress.update_status("sentiment_agent", ticker, "Combining signals")
+        progress.update_status("sentiment_agent", slug, "Combining signals")
         # Combine signals from both sources with weights
         insider_weight = 0.3
         news_weight = 0.7
@@ -85,13 +104,13 @@ def social_media_agent(state: AgentState):
             confidence = round(max(bullish_signals, bearish_signals) / total_weighted_signals, 2) * 100
         reasoning = f"Weighted Bullish signals: {bullish_signals:.1f}, Weighted Bearish signals: {bearish_signals:.1f}"
 
-        sentiment_analysis[ticker] = {
+        sentiment_analysis[slug] = {
             "signal": overall_signal,
             "confidence": confidence,
             "reasoning": reasoning,
         }
 
-        progress.update_status("sentiment_agent", ticker, "Done")
+        progress.update_status("sentiment_agent", slug, "Done")
 
     # Create the sentiment message
     message = HumanMessage(
