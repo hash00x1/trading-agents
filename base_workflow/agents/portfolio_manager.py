@@ -8,7 +8,7 @@ from base_workflow.graph.state import AgentState
 llm = ChatOpenAI(model='gpt-4o-mini', temperature=0.7)
 
 
-class PortfolioManager(DialogueSimulatorAgent):
+class Riskmanager(DialogueSimulatorAgent):
     """
     Evaluating recommendations and insights from analysts and researchers.
     Deciding on the timing and size of trades to maximize trading returns

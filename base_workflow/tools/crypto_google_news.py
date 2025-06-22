@@ -1,8 +1,9 @@
+# Notes: this script does not work properly yet, it doesn't scrape the news articles.
 # 1. Install and Import Baseline Dependencies
 from bs4 import BeautifulSoup
 import requests
 import re
-
+# google API 
 # 3. Setup Pipeline
 monitored_tickers = ['ETH']
 

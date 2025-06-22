@@ -3,7 +3,7 @@ from graph.state import AgentState, show_agent_reasoning
 from utils.progress import progress
 import json
 
-from tools.api import get_financial_metrics
+from base_workflow.tools.api_price import get_financial_metrics
 
 
 ##### bake up agent #####

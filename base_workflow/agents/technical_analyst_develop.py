@@ -11,7 +11,7 @@ import json
 import pandas as pd
 import numpy as np
 
-from base_workflow.tools.api import get_prices, prices_to_df
+from base_workflow.tools.api_price import get_prices, prices_to_df
 from base_workflow.utils.progress import progress
 
 ##### Technical Analyst #####
@@ -51,6 +51,8 @@ def technical_analyst_agent(state: AgentState):
     4. Volatility Analysis / Volatility indicators
     5. Statistical Arbitrage Signals 
     """
+
+    # Change the start_data to be two weeks before the end_date
     data = state["data"]
     start_date = data["start_date"]
     end_date = data["end_date"]
@@ -542,13 +544,19 @@ def calculate_hurst_exponent(price_series: pd.Series, max_lag: int = 20) -> floa
     
 if __name__ == "__main__":
     # Test the technical analyst agent with dummy data
+    # In the future use the past two weeks of data for usage
+
+    slug = "ohlcv/bitcoin"       
+    start_date="2024-06-07"
+    end_date="2025-05-08"
+
     test_state = AgentState(
         messages=[],
         data={
             "tickers": ["ohlcv/bitcoin" ],
-            "start_date": "2023-01-01",
-            "end_date": "2023-10-01",
-            "time_interval": "1d",
+            "start_date": "2024-06-07",
+            "end_date": "2024-07-08",
+            "time_interval": "4h",
         },
         metadata={"show_reasoning": False},
     )

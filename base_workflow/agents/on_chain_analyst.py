@@ -3,7 +3,7 @@ from graph.state import AgentState, show_agent_reasoning
 from utils.progress import progress
 import json
 
-from tools.api import get_financial_metrics
+from base_workflow.tools.api_price import get_financial_metrics
 
 #### On-Chain Data Analyst Agent #####
 # NO BASE, ABSOLUTELY MY OWN WORK ###
@@ -11,7 +11,7 @@ from tools.api import get_financial_metrics
 # Generates a trading signal (bullish, bearish, neutral) for each cryptocurrency
 # Provides human-readable reasoning and a confidence score
 
-def onchain_data_analyst_agent(state: AgentState):
+def on_chain_data_analyst_agent(state: AgentState):
     """Analyzes on-chain data using Santiment and generates trading signals."""
     data = state["data"]
     end_date = data["end_date"]
@@ -22,17 +22,10 @@ def onchain_data_analyst_agent(state: AgentState):
     for ticker in tickers:
         progress.update_status("onchain_agent", ticker, "Fetching on-chain metrics")
 
-        # # 1. 获取 Santiment 的链上数据（您需要对接 santiment API）
-        # metrics = get_santiment_onchain_metrics(ticker, end_date)
-
-        # if not metrics:
-        #     progress.update_status("onchain_agent", ticker, "Failed: No on-chain metrics found")
-        #     continue
-
         signals = []
         reasoning = {}
 
-        # 2. 活跃地址分析（活跃用户越多越 bullish）
+        # 活跃地址分析（活跃用户越多越 bullish）daily_active_addresses  liquity_active_addresses
         active_addresses = metrics.get("active_addresses")
         if active_addresses and active_addresses > metrics.get("active_avg_30d", 0) * 1.2:
             signals.append("bullish")
@@ -45,20 +38,7 @@ def onchain_data_analyst_agent(state: AgentState):
             "details": f"Active: {active_addresses}, 30D Avg: {metrics.get('active_avg_30d')}",
         }
 
-        # # 3. SOPR 分析
-        # sopr = metrics.get("sopr")
-        # if sopr and sopr > 1.02:
-        #     signals.append("bullish")
-        # elif sopr and sopr < 0.98:
-        #     signals.append("bearish")
-        # else:
-        #     signals.append("neutral")
-        # reasoning["sopr_signal"] = {
-        #     "signal": signals[-1],
-        #     "details": f"SOPR: {sopr}",
-        # }
-
-        # # 4. 交易量分析
+        # # 2. 交易量分析
         # tx_volume = metrics.get("transaction_volume")
         # if tx_volume and tx_volume > metrics.get("volume_avg_30d", 0) * 1.5:
         #     signals.append("bullish")
@@ -71,7 +51,7 @@ def onchain_data_analyst_agent(state: AgentState):
         #     "details": f"Tx Volume: {tx_volume}, 30D Avg: {metrics.get('volume_avg_30d')}",
         # }
 
-        # 5. 鲸鱼地址行为（增加持仓通常 bullish）
+        # 3. 鲸鱼地址行为（增加持仓通常 bullish）
         whale_balance_change = metrics.get("whale_balance_change")
         if whale_balance_change and whale_balance_change > 0:
             signals.append("bullish")

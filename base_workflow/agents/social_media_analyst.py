@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 import json
 
-from tools.api import (get_twitter_positive_sentiment_score, 
+from base_workflow.tools.api_price import (get_twitter_positive_sentiment_score, 
                        get_twitter_negative_sentiment_score, 
                        get_reddit_negative_sentiment_score, 
                        get_reddit_positive_sentiment_score,
@@ -53,10 +53,10 @@ def sentiment_agent(state: AgentState):
         reddit_negative_sentiment_score = get_reddit_negative_sentiment_score(slug=slug, start_date=start_date, end_date=end_date)
         # Calculate the sentiment score
         
-        # Get the Social Volume analysis from Telegram, Twitter and Youtube
         progress.update_status("social_media_sentiment_agent", slug, "Analyzing Sentiment Scores")
+        # Calculate the sentiment score of the news.
 
-        # set the weights for each source
+        # Set the weights for each source to calculate the overall sentiment score
         social_media_weight = 0.4
         news_weight = 0.6
 
@@ -67,29 +67,24 @@ def sentiment_agent(state: AgentState):
 
         progress.update_status("social_media_sentiment_agent", slug, "Fetching company news")
 
-        # Get the crypro news
-        company_news = get_company_news(slug, end_date, limit=100)
-
         # Get the sentiment from the company news
         sentiment = pd.Series([n.sentiment for n in company_news]).dropna()
         news_signals = np.where(sentiment == "negative", "bearish", 
                               np.where(sentiment == "positive", "bullish", "neutral")).tolist()
         
         progress.update_status("sentiment_agent", slug, "Combining signals")
-        # Combine signals from both sources with weights
-        insider_weight = 0.3
-        news_weight = 0.7
         
         # Calculate weighted signal counts
         bullish_signals = (
-            insider_signals.count("bullish") * insider_weight +
             news_signals.count("bullish") * news_weight
         )
         bearish_signals = (
-            insider_signals.count("bearish") * insider_weight +
+
             news_signals.count("bearish") * news_weight
         )
-
+        # Strategy:
+        # if two of the three sources are bullish, then the overall signal is bullish.
+        # if two of the three sources are bearish, then the overall signal is bearish.
         if bullish_signals > bearish_signals:
             overall_signal = "bullish"
         elif bearish_signals > bullish_signals:
@@ -97,7 +92,7 @@ def sentiment_agent(state: AgentState):
         else:
             overall_signal = "neutral"
 
-        # Calculate confidence level based on the weighted proportion
+        # Calculate confidence level
         total_weighted_signals = len(insider_signals) * insider_weight + len(news_signals) * news_weight
         confidence = 0  # Default confidence when there are no signals
         if total_weighted_signals > 0:
@@ -124,7 +119,7 @@ def sentiment_agent(state: AgentState):
 
     # Add the signal to the analyst_signals list
     state["data"]["analyst_signals"]["sentiment_agent"] = sentiment_analysis
-
+    # Check here how was it done in the original work.
     return {
         "messages": [message],
         "data": data,

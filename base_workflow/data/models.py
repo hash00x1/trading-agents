@@ -29,6 +29,11 @@ class SocialDominanceValue(BaseModel):
 class SocialDominanceResponse(BaseModel):
     ticker: str
     dominance_values: list[SocialDominanceValue]
+
+class FearGreedIndex(BaseModel):
+    value: int
+    classification: str
+    updated_at: str 
     
 class FinancialMetrics(BaseModel):
     ticker: str
