@@ -4,6 +4,7 @@ from langgraph.prebuilt import create_react_agent
 import math
 
 from langchain_core.messages import HumanMessage
+from pandas.core.arrays import period
 # add show_agent_reasoning later
 from base_workflow.graph.state import AgentState
 
@@ -45,10 +46,10 @@ def technical_analyst_agent(state: AgentState):
 
     """
     Sophisticated technical analysis system that combines multiple trading strategies for multiple tickers:
-    1. Trend Following / overlap study indicators
-    2. Mean Reversion
+    1. Trend Following
+    2. Mean Reversion Change!
     3. Momentum / momentum indicators
-    4. Volatility Analysis / Volatility indicators
+    4. Volatility indicators Change!
     5. Statistical Arbitrage Signals 
     """
 
@@ -92,8 +93,8 @@ def technical_analyst_agent(state: AgentState):
         progress.update_status("technical_analyst_agent", ticker, "Analyzing volatility")
         volatility_signals = calculate_volatility_signals(prices_df)
 
-        progress.update_status("technical_analyst_agent", ticker, "Statistical analysis")
-        stat_arb_signals = calculate_stat_arb_signals(prices_df)
+        # progress.update_status("technical_analyst_agent", ticker, "Statistical analysis")
+        # stat_arb_signals = calculate_stat_arb_signals(prices_df)
 
         # Combine all signals using a weighted ensemble approach
         strategy_weights = {
@@ -111,7 +112,6 @@ def technical_analyst_agent(state: AgentState):
                 "mean_reversion": mean_reversion_signals,
                 "momentum": momentum_signals,
                 "volatility": volatility_signals,
-                "stat_arb": stat_arb_signals,
             },
             strategy_weights,
         )
@@ -140,12 +140,7 @@ def technical_analyst_agent(state: AgentState):
                     "signal": volatility_signals["signal"],
                     "confidence": round(volatility_signals["confidence"] * 100),
                     "metrics": normalize_pandas(volatility_signals["metrics"]),
-                },
-                "statistical_arbitrage": {
-                    "signal": stat_arb_signals["signal"],
-                    "confidence": round(stat_arb_signals["confidence"] * 100),
-                    "metrics": normalize_pandas(stat_arb_signals["metrics"]),
-                },
+                }
             },
         }
         progress.update_status("technical_analyst_agent", ticker, "Done")
@@ -174,16 +169,16 @@ def calculate_trend_signals(prices_df):
     Advanced trend following strategy using multiple timeframes and indicators
     """
     # Calculate EMAs for multiple timeframes
-    ema_8 = calculate_ema(prices_df, 8)
-    ema_21 = calculate_ema(prices_df, 21)
-    ema_55 = calculate_ema(prices_df, 55)
+    ema_5 = calculate_ema(prices_df, 30) # 6 * 5 = 30, 5 days as EMA fast line, quick trend or bounce
+    ema_14 = calculate_ema(prices_df, 84) # 6 * 14 = 84, 14 days as Core trend-following period
+    ema_28 = calculate_ema(prices_df, 128) # 6 * 28 = 168, 28 days as EMA slow line, used to confirm trend bias
 
-    # Calculate ADX for trend strength
+    # Calculate ADX for trend strength, using 14 candles, 2.3 days 
     adx = calculate_adx(prices_df, 14)
 
     # Determine trend direction and strength
-    short_trend = ema_8 > ema_21
-    medium_trend = ema_21 > ema_55
+    short_trend = ema_5 > ema_14
+    medium_trend = ema_14 > ema_28
 
     # Combine signals with confidence weighting
     trend_strength = adx["adx"].iloc[-1] / 100.0
@@ -207,22 +202,25 @@ def calculate_trend_signals(prices_df):
         },
     }
 
-
+# Calculating moving averages (like SMA or EMA) to establish a mean, 
+# then using standard deviation to gauge price volatility and identify potential reversion points. 
+# https://blog.ueex.com/en-us/mean-reversion-strategies-for-profiting-in-cryptocurrency/#elementor-toc__heading-anchor-2
 def calculate_mean_reversion_signals(prices_df):
     """
     Mean reversion strategy using statistical measures and Bollinger Bands
     """
-    # Calculate z-score of price relative to moving average
-    ma_50 = prices_df["close"].rolling(window=50).mean()
-    std_50 = prices_df["close"].rolling(window=50).std()
-    z_score = (prices_df["close"] - ma_50) / std_50
+    # Calculate z-score of price relative to moving average, 20 period
+    ma_20 = prices_df["close"].rolling(window=20).mean()
+    std_20 = prices_df["close"].rolling(window=20).std()
+    z_score = (prices_df["close"] - ma_20) / std_20
 
-    # Calculate Bollinger Bands
+    # Calculate Bollinger Bands, 20-period 
     bb_upper, bb_lower = calculate_bollinger_bands(prices_df)
 
     # Calculate RSI with multiple timeframes
+    # https://goodcrypto.app/relative-strength-index-rsi-indicator-for-crypto-trading-an-ultimate-guide-by-good-crypto/
     rsi_14 = calculate_rsi(prices_df, 14)
-    rsi_28 = calculate_rsi(prices_df, 28)
+    # rsi_28 = calculate_rsi(prices_df, 28)
 
     # Mean reversion signals
     price_vs_bb = (prices_df["close"].iloc[-1] - bb_lower.iloc[-1]) / (bb_upper.iloc[-1] - bb_lower.iloc[-1])
@@ -245,30 +243,41 @@ def calculate_mean_reversion_signals(prices_df):
             "z_score": float(z_score.iloc[-1]),
             "price_vs_bb": float(price_vs_bb),
             "rsi_14": float(rsi_14.iloc[-1]),
-            "rsi_28": float(rsi_28.iloc[-1]),
-        },
+        }
+            #  "rsi_28": float(rsi_28.iloc[-1]),
+        
     }
 
-
+# Cite： Cryptocurrency momentum has (not) its moments
 def calculate_momentum_signals(prices_df):
     """
     Multi-factor momentum strategy
     """
     # Price momentum
+    # look-back period between 7–28 days and holding period of 1–2 weeks gives optimal performance in crypto
+    # 7 days, 42 bars 
+    # 14 days, 84 bars
+    # 21 days, 126 bars
     returns = prices_df["close"].pct_change()
-    mom_1m = returns.rolling(21).sum()
-    mom_3m = returns.rolling(63).sum()
-    mom_6m = returns.rolling(126).sum()
+    mom_7d = returns.rolling(42).sum()
+    mom_14d = returns.rolling(84).sum()
+    mom_21d = returns.rolling(126).sum()
 
     # Volume momentum
-    volume_ma = prices_df["volume"].rolling(21).mean()
+    volume_ma = prices_df["volume"].rolling(42).mean()
     volume_momentum = prices_df["volume"] / volume_ma
+
+    # Volume Oscillator（VO）
+    # vol_fast = prices_df["volume"].rolling(window=14).mean()
+    # vol_slow = prices_df["volume"].rolling(window=28).mean()
+    # volume_osc = (vol_fast - vol_slow) / vol_slow
+
 
     # Relative strength
     # (would compare to market/sector in real implementation)
 
     # Calculate momentum score
-    momentum_score = (0.4 * mom_1m + 0.3 * mom_3m + 0.3 * mom_6m).iloc[-1]
+    momentum_score = (0.4 * mom_7d + 0.3 * mom_14d + 0.3 * mom_21d).iloc[-1]
 
     # Volume confirmation
     volume_confirmation = volume_momentum.iloc[-1] > 1.0
@@ -287,9 +296,9 @@ def calculate_momentum_signals(prices_df):
         "signal": signal,
         "confidence": confidence,
         "metrics": {
-            "momentum_1m": float(mom_1m.iloc[-1]),
-            "momentum_3m": float(mom_3m.iloc[-1]),
-            "momentum_6m": float(mom_6m.iloc[-1]),
+            "momentum_7d": float(mom_7d.iloc[-1]),
+            "momentum_14d": float(mom_14d.iloc[-1]),
+            "momentum_21d": float(mom_21d.iloc[-1]),
             "volume_momentum": float(volume_momentum.iloc[-1]),
         },
     }
@@ -297,20 +306,22 @@ def calculate_momentum_signals(prices_df):
 
 def calculate_volatility_signals(prices_df):
     """
-    Volatility-based trading strategy
+    Volatility-based trading strategy based on historical volatility and ATR ratio
+    Inspired by the Momentum Alligator strategy:
+    https://www.tradingview.com/script/u31hDmOU-Momentum-Alligator-4h-Bitcoin-Strategy/?utm_source=chatgpt.com
     """
     # Calculate various volatility metrics
     returns = prices_df["close"].pct_change()
 
-    # Historical volatility
-    hist_vol = returns.rolling(21).std() * math.sqrt(252)
+    # Historical volatility 
+    hist_vol = returns.rolling(84).std() * math.sqrt(6*365)
 
     # Volatility regime detection
-    vol_ma = hist_vol.rolling(63).mean()
+    vol_ma = hist_vol.rolling(180).mean() # 30d * 6
     vol_regime = hist_vol / vol_ma
 
     # Volatility mean reversion
-    vol_z_score = (hist_vol - vol_ma) / hist_vol.rolling(63).std()
+    vol_z_score = (hist_vol - vol_ma) / hist_vol.rolling(180).std()
 
     # ATR ratio
     atr = calculate_atr(prices_df)
@@ -341,44 +352,6 @@ def calculate_volatility_signals(prices_df):
         },
     }
 
-
-def calculate_stat_arb_signals(prices_df):
-    """
-    Statistical arbitrage signals based on price action analysis
-    """
-    # Calculate price distribution statistics
-    returns = prices_df["close"].pct_change()
-
-    # Skewness and kurtosis
-    skew = returns.rolling(63).skew()
-    kurt = returns.rolling(63).kurt()
-
-    # Test for mean reversion using Hurst exponent
-    hurst = calculate_hurst_exponent(prices_df["close"])
-
-    # Correlation analysis
-    # (would include correlation with related securities in real implementation)
-
-    # Generate signal based on statistical properties
-    if hurst < 0.4 and skew.iloc[-1] > 1:
-        signal = "bullish"
-        confidence = (0.5 - hurst) * 2
-    elif hurst < 0.4 and skew.iloc[-1] < -1:
-        signal = "bearish"
-        confidence = (0.5 - hurst) * 2
-    else:
-        signal = "neutral"
-        confidence = 0.5
-
-    return {
-        "signal": signal,
-        "confidence": confidence,
-        "metrics": {
-            "hurst_exponent": float(hurst),
-            "skewness": float(skew.iloc[-1]),
-            "kurtosis": float(kurt.iloc[-1]),
-        },
-    }
 
 # in the future, this could be decided by the bearish and bullish researcher team.
 def weighted_signal_combination(signals, weights):
@@ -439,7 +412,7 @@ def calculate_rsi(prices_df: pd.DataFrame, period: int = 14) -> pd.Series:
     rsi = 100 - (100 / (1 + rs))
     return rsi
 
-
+# stay with bollinger bands' classic design, which is 20-period window SMA and 2 standard deviations
 def calculate_bollinger_bands(prices_df: pd.DataFrame, window: int = 20) -> tuple[pd.Series, pd.Series]:
     sma = prices_df["close"].rolling(window).mean()
     std_dev = prices_df["close"].rolling(window).std()
@@ -494,7 +467,9 @@ def calculate_adx(df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
 
     return df[["adx", "+di", "-di"]]
 
-
+# ATR works by breaking down the full range of an asset price over a period of time, 
+# and finding the market volatility of the asset
+# set to 14 days 14* 6 = 84 bars
 def calculate_atr(df: pd.DataFrame, period: int = 14) -> pd.Series:
     """
     Calculate Average True Range
@@ -516,32 +491,6 @@ def calculate_atr(df: pd.DataFrame, period: int = 14) -> pd.Series:
     return true_range.rolling(period).mean()
 
 
-def calculate_hurst_exponent(price_series: pd.Series, max_lag: int = 20) -> float:
-    """
-    Calculate Hurst Exponent to determine long-term memory of time series
-    H < 0.5: Anti-persistent, mean reverting series. 
-    H = 0.5: No long-term correlation, random walk
-    H > 0.5: Persistent, trending series
-
-    Args:
-        price_series: Array-like price data
-        max_lag: Maximum lag for R/S calculation
-
-    Returns:
-        float: Hurst exponent
-    """
-    lags = range(2, max_lag)
-    # Add small epsilon to avoid log(0)
-    tau = [max(1e-8, np.sqrt(np.std(np.subtract(price_series[lag:], price_series[:-lag])))) for lag in lags]
-
-    # Return the Hurst exponent from linear fit
-    try:
-        reg = np.polyfit(np.log(lags), np.log(tau), 1)
-        return reg[0]  # Hurst exponent is the slope
-    except (ValueError, RuntimeWarning):
-        # Return 0.5 (random walk) if calculation fails
-        return 0.5
-    
 if __name__ == "__main__":
     # Test the technical analyst agent with dummy data
     # In the future use the past two weeks of data for usage
