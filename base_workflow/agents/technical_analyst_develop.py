@@ -5,6 +5,7 @@ import math
 
 from langchain_core.messages import HumanMessage
 from pandas.core.arrays import period
+from san.extras.strategy import prices
 # add show_agent_reasoning later
 from base_workflow.graph.state import AgentState
 
@@ -49,8 +50,7 @@ def technical_analyst_agent(state: AgentState):
     1. Trend Following
     2. Mean Reversion Change!
     3. Momentum / momentum indicators
-    4. Volatility indicators Change!
-    5. Statistical Arbitrage Signals 
+    4. Volatility indicators Change
     """
 
     # Change the start_data to be two weeks before the end_date
@@ -81,6 +81,8 @@ def technical_analyst_agent(state: AgentState):
         # Convert prices to a DataFrame
         prices_df = prices_to_df(prices)
         # print (prices_df)
+        # TODO: Set different time intervals for the following analysis
+        
         progress.update_status("technical_analyst_agent", ticker, "Calculating trend signals")
         trend_signals = calculate_trend_signals(prices_df)
 
@@ -92,9 +94,6 @@ def technical_analyst_agent(state: AgentState):
 
         progress.update_status("technical_analyst_agent", ticker, "Analyzing volatility")
         volatility_signals = calculate_volatility_signals(prices_df)
-
-        # progress.update_status("technical_analyst_agent", ticker, "Statistical analysis")
-        # stat_arb_signals = calculate_stat_arb_signals(prices_df)
 
         # Combine all signals using a weighted ensemble approach
         strategy_weights = {
@@ -169,12 +168,13 @@ def calculate_trend_signals(prices_df):
     Advanced trend following strategy using multiple timeframes and indicators
     """
     # Calculate EMAs for multiple timeframes
-    ema_5 = calculate_ema(prices_df, 30) # 6 * 5 = 30, 5 days as EMA fast line, quick trend or bounce
-    ema_14 = calculate_ema(prices_df, 84) # 6 * 14 = 84, 14 days as Core trend-following period
-    ema_28 = calculate_ema(prices_df, 128) # 6 * 28 = 168, 28 days as EMA slow line, used to confirm trend bias
+    # Only need the last 2 weeks of data
+    ema_5 = calculate_ema(prices_df, 30).tail(84) # 6 * 5 = 30, 5 days as EMA fast line, quick trend or bounce
+    ema_14 = calculate_ema(prices_df, 84).tail(84)# 6 * 14 = 84, 14 days as Core trend-following period
+    ema_28 = calculate_ema(prices_df, 128).tail(84) # 6 * 28 = 168, 28 days as EMA slow line, used to confirm trend bias
 
     # Calculate ADX for trend strength, using 14 candles, 2.3 days 
-    adx = calculate_adx(prices_df, 14)
+    adx = calculate_adx(prices_df, 14).tail(84)
 
     # Determine trend direction and strength
     short_trend = ema_5 > ema_14
@@ -210,11 +210,14 @@ def calculate_mean_reversion_signals(prices_df):
     Mean reversion strategy using statistical measures and Bollinger Bands
     """
     # Calculate z-score of price relative to moving average, 20 period
-    ma_20 = prices_df["close"].rolling(window=20).mean()
+    period = 84  # 14 days * 6 = 84 bars for 4-hour data
+    ma_20_full = prices_df["close"].rolling(window=20).mean()
+    ma_20 = ma_20_full.tail(period)
     std_20 = prices_df["close"].rolling(window=20).std()
-    z_score = (prices_df["close"] - ma_20) / std_20
+    std_20 = std_20.tail(period)
+    z_score = (prices_df["close"].tail(period) - ma_20) / std_20
 
-    # Calculate Bollinger Bands, 20-period 
+    # Calculate Bollinger Bands, 20-period, in 2 weels
     bb_upper, bb_lower = calculate_bollinger_bands(prices_df)
 
     # Calculate RSI with multiple timeframes
@@ -223,7 +226,7 @@ def calculate_mean_reversion_signals(prices_df):
     # rsi_28 = calculate_rsi(prices_df, 28)
 
     # Mean reversion signals
-    price_vs_bb = (prices_df["close"].iloc[-1] - bb_lower.iloc[-1]) / (bb_upper.iloc[-1] - bb_lower.iloc[-1])
+    price_vs_bb = (prices_df["close"].tail(period).iloc[-1] - bb_lower.iloc[-1]) / (bb_upper.iloc[-1] - bb_lower.iloc[-1])
 
     # Combine signals
     if z_score.iloc[-1] < -2 and price_vs_bb < 0.2:
@@ -258,14 +261,17 @@ def calculate_momentum_signals(prices_df):
     # 7 days, 42 bars 
     # 14 days, 84 bars
     # 21 days, 126 bars
+    period = 84  # 14 days * 6 = 84 bars for 4-hour data
     returns = prices_df["close"].pct_change()
-    mom_7d = returns.rolling(42).sum()
-    mom_14d = returns.rolling(84).sum()
-    mom_21d = returns.rolling(126).sum()
+    mom_7d = returns.rolling(42).sum().tail(period)
+    mom_14d = returns.rolling(84).sum().tail(period)
+    mom_21d = returns.rolling(126).sum().tail(period)
 
     # Volume momentum
-    volume_ma = prices_df["volume"].rolling(42).mean()
-    volume_momentum = prices_df["volume"] / volume_ma
+    volume_ma_2m = prices_df["volume"].rolling(42).mean()
+    volume_ma = volume_ma_2m.tail(period)
+    volume = prices_df["volume"].tail(period)
+    volume_momentum = volume / volume_ma
 
     # Volume Oscillator（VO）
     # vol_fast = prices_df["volume"].rolling(window=14).mean()
@@ -309,23 +315,31 @@ def calculate_volatility_signals(prices_df):
     Volatility-based trading strategy based on historical volatility and ATR ratio
     Inspired by the Momentum Alligator strategy:
     https://www.tradingview.com/script/u31hDmOU-Momentum-Alligator-4h-Bitcoin-Strategy/?utm_source=chatgpt.com
+
+    and: https://coinrule.com/blog/learn/how-to-calculate-volatility-in-crypto-and-stocks-a-complete-guide/
     """
     # Calculate various volatility metrics
+    # pct_change() is a function in the pandas library that calculates the percentage change between 
+    # each element in a DataFrame or Series and the previous element.
+    period = 84 
     returns = prices_df["close"].pct_change()
 
-    # Historical volatility 
-    hist_vol = returns.rolling(84).std() * math.sqrt(6*365)
+    # Historical volatility. daily closing prices over 2 weeks.
+    hist_vol_2m = returns.rolling(period).std() * math.sqrt(6*365)
+    hist_vol = hist_vol_2m.tail(period)
 
-    # Volatility regime detection
-    vol_ma = hist_vol.rolling(180).mean() # 30d * 6
+    # Volatility regime detection， minimum 2 months of data to calculate the regime
+    #vol_ma = hist_vol_2m.rolling(180).mean()
+    vol_ma = hist_vol_2m.rolling(180).mean().tail(period) # 30d * 6
     vol_regime = hist_vol / vol_ma
 
     # Volatility mean reversion
-    vol_z_score = (hist_vol - vol_ma) / hist_vol.rolling(180).std()
+    vol_z_score = (hist_vol - vol_ma) / hist_vol_2m.rolling(180).std().tail(period)
 
     # ATR ratio
+    prices_df = prices_df.tail(period)  # Ensure we only use the last 2 weeks of data
     atr = calculate_atr(prices_df)
-    atr_ratio = atr / prices_df["close"]
+    atr_ratio = atr / prices_df["close"].tail(period)
 
     # Generate signal based on volatility regime
     current_vol_regime = vol_regime.iloc[-1]
@@ -402,20 +416,25 @@ def normalize_pandas(obj):
     return obj
 
 
-def calculate_rsi(prices_df: pd.DataFrame, period: int = 14) -> pd.Series:
+def calculate_rsi(prices_df: pd.DataFrame, period: int = 14, period_days: int = 84) -> pd.Series:
     delta = prices_df["close"].diff()
     gain = (delta.where(delta > 0, 0)).fillna(0)
     loss = (-delta.where(delta < 0, 0)).fillna(0)
     avg_gain = gain.rolling(window=period).mean()
+    avg_gain = avg_gain.tail(period_days) 
     avg_loss = loss.rolling(window=period).mean()
+    avg_loss = avg_loss.tail(period_days)
     rs = avg_gain / avg_loss
     rsi = 100 - (100 / (1 + rs))
     return rsi
 
 # stay with bollinger bands' classic design, which is 20-period window SMA and 2 standard deviations
-def calculate_bollinger_bands(prices_df: pd.DataFrame, window: int = 20) -> tuple[pd.Series, pd.Series]:
-    sma = prices_df["close"].rolling(window).mean()
-    std_dev = prices_df["close"].rolling(window).std()
+# only need the last 2 weeks of data
+def calculate_bollinger_bands(prices_df: pd.DataFrame, window: int = 20, period: int = 84) -> tuple[pd.Series, pd.Series]:
+    sma_full = prices_df["close"].rolling(window).mean()
+    sma = sma_full.tail(period) 
+    std_dev_full = prices_df["close"].rolling(window).std() 
+    std_dev = std_dev_full.tail(period)
     upper_band = sma + (std_dev * 2)
     lower_band = sma - (std_dev * 2)
     return upper_band, lower_band
@@ -469,7 +488,6 @@ def calculate_adx(df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
 
 # ATR works by breaking down the full range of an asset price over a period of time, 
 # and finding the market volatility of the asset
-# set to 14 days 14* 6 = 84 bars
 def calculate_atr(df: pd.DataFrame, period: int = 14) -> pd.Series:
     """
     Calculate Average True Range
@@ -498,13 +516,13 @@ if __name__ == "__main__":
     slug = "ohlcv/bitcoin"       
     start_date="2024-06-07"
     end_date="2025-05-08"
-
+    # !!!!!!minimum 2 months of data to calculate the regime
     test_state = AgentState(
         messages=[],
         data={
             "tickers": ["ohlcv/bitcoin" ],
             "start_date": "2024-06-07",
-            "end_date": "2024-07-08",
+            "end_date": "2024-08-08",
             "time_interval": "4h",
         },
         metadata={"show_reasoning": False},

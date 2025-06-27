@@ -22,7 +22,8 @@ from .api_santiment import (
     get_sentiment_negative_total,
     get_sentiment_positive_total,
     get_sentiment_balance_total )
-
+from .fgi_api import (
+    get_fear_and_greed_index)
 from .openai_news_crawler import (
     get_crypto_social_news_openai,
     get_crypto_global_news_openai

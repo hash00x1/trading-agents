@@ -6,8 +6,10 @@ import json
 from base_workflow.tools.api_price import get_financial_metrics
 
 #### On-Chain Data Analyst Agent #####
-# NO BASE, ABSOLUTELY MY OWN WORK ###
-# Analyzes on-chain metrics like active addresses, SOPR, transaction volume, whale behavior.
+# Book: do Fundamentals Drive Cryptocurrency Prices?
+# Analyzes on-chain metrics like active addresses, transaction volume, whale behavior.
+# computing power
+# Network Size: Measured by the number of active users or addresses, indicating adoption and utility.
 # Generates a trading signal (bullish, bearish, neutral) for each cryptocurrency
 # Provides human-readable reasoning and a confidence score
 

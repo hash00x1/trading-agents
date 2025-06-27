@@ -35,7 +35,6 @@ import pandas as pd
 # Social Volume analysis
 # combine the discussion volume (volume_score) from Telegram, Twitter, and YouTube. A higher discussion volume typically 
 # indicates increased market interest in an asset, which could be a precursor to price fluctuations
-
 def get_telegram_positive_sentiment_score(slug: str, start_date: str, end_date: str) -> list[SocialSentimentScoreValue]:
     """Fetch Telegram sentiment score from cache or API."""
     # Check cache first

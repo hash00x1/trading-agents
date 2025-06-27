@@ -2,7 +2,7 @@ import requests
 from base_workflow.data.models import FearGreedIndex
 from datetime import datetime, timezone
 
-def get_fear_greed_index() -> FearGreedIndex:
+def get_fear_and_greed_index() -> FearGreedIndex:
     """
     Fetch the Fear and Greed Index from the Alternative.me API.
     
