@@ -11,6 +11,7 @@ from .write_document import write_document
 from .api_price import (
     get_prices,
 )
+from .news import scrape_news_pages
 
 from .api_santiment import (
     get_telegram_positive_sentiment_score,
@@ -40,6 +41,7 @@ __all__ = [
     'write_document',
     'read_document',
     'get_prices',
+    'scrape_news_pages',
     'get_telegram_positive_sentiment_score',
     'get_telegram_negative_sentiment_score',
     'get_reddit_negative_sentiment_score',

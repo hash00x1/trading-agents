@@ -1,29 +1,41 @@
-import json
+from typing import List
 import requests
 from bs4 import BeautifulSoup
+from typing import Annotated, List
+from langchain_community.document_loaders import WebBaseLoader
+from langchain_community.tools.tavily_search import TavilySearchResults
+from langchain_core.tools import tool
 
-def getNewsData():
-    headers = {
-        "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.54 Safari/537.36"
-    }
-    response = requests.get(
-        "https://www.google.com/search?q=amazon&gl=us&tbm=nws&num=100", headers=headers
-    )
-    soup = BeautifulSoup(response.content, "html.parser")
-    news_results = []
+@tool
+def scrape_news_pages(urls: List[str]) -> str:
+    """Scrape the provided news web pages for headlines and summaries."""
+    all_results = []
 
-    for el in soup.select("div.SoaBEf"):
-        news_results.append(
-            {
-                "link": el.find("a")["href"],
-                "title": el.select_one("div.MBeuO").get_text(),
-                "snippet": el.select_one(".GI74Re").get_text(),
-                "date": el.select_one(".LfVVr").get_text(),
-                "source": el.select_one(".NUnG9d span").get_text(),
-            }
-        )
+    headers = {'User-Agent': 'Mozilla/5.0'}
 
-    print(json.dumps(news_results, indent=2))
+    for url in urls:
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Example: extract <h1>, <h2>, or <h3> tags as headlines
+            headlines = []
+            for tag in soup.find_all(['h1', 'h2', 'h3']):
+                text = tag.get_text(strip=True)
+                if text and 'bitcoin' in text.lower():
+                    headlines.append(text)
+            
+            # Create document-style output
+            result = f'<Document url="{url}">\n'
+            for idx, hl in enumerate(headlines, 1):
+                result += f'Headline {idx}: {hl}\n'
+            result += '</Document>\n'
+            
+            all_results.append(result)
 
-getNewsData()
+        except Exception as e:
+            all_results.append(f'<Document url="{url}">\nError: {str(e)}\n</Document>\n')
+    
+    return "\n".join(all_results)
