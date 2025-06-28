@@ -9,6 +9,8 @@ from langgraph.prebuilt import create_react_agent
 
 
 ##### Financial News Sentiment Agent #####
+### Maybe only for test use, later combine with the social_media_analyst.py ###
+
 news_analyst_system_message = """
 You are a News Analyst Agent in a multi-agent financial analysis system.
 
@@ -16,7 +18,6 @@ Your role is to investigate and summarize relevant macroeconomic, geopolitical, 
 
 ## Tasks:
 - Review and analyze news from multiple sources, such as:
-  - Reddit threads, Twitter/X posts
   - Financial news portals (e.g., Bloomberg, Reuters, Google News)
   - Aggregated global headlines from trusted APIs
 - Identify key macroeconomic themes: inflation, interest rates, employment, GDP, central bank policy, etc.

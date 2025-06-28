@@ -310,36 +310,95 @@ def calculate_momentum_signals(prices_df):
     }
 
 
+# def calculate_volatility_signals(prices_df):
+#     """
+#     Volatility-based trading strategy based on historical volatility and ATR ratio
+#     Inspired by the Momentum Alligator strategy:
+#     https://www.tradingview.com/script/u31hDmOU-Momentum-Alligator-4h-Bitcoin-Strategy/?utm_source=chatgpt.com
+
+#     and: https://coinrule.com/blog/learn/how-to-calculate-volatility-in-crypto-and-stocks-a-complete-guide/
+#     """
+#     # Calculate various volatility metrics
+#     # pct_change() is a function in the pandas library that calculates the percentage change between 
+#     # each element in a DataFrame or Series and the previous element.
+#     period = 84 
+
+#     returns = prices_df["close"].pct_change()
+
+#     # Historical volatility. daily closing prices over 2 weeks.
+#     hist_vol_2m = returns.rolling(period).std() * math.sqrt(6*365)
+#     hist_vol = hist_vol_2m.tail(period)
+
+#     # Volatility regime detection， minimum 2 months of data to calculate the regime
+#     #vol_ma = hist_vol_2m.rolling(180).mean()
+#     # use ema instead of ma.
+#     vol_ma = hist_vol_2m.rolling(180).mean().tail(period) # 30d * 6
+#     vol_regime = hist_vol / vol_ma
+
+#     # Volatility mean reversion
+#     vol_z_score = (hist_vol - vol_ma) / hist_vol_2m.rolling(180).std().tail(period)
+
+#     # ATR ratio
+#     prices_df = prices_df.tail(period)  # Ensure we only use the last 2 weeks of data
+#     atr = calculate_atr(prices_df)
+#     atr_ratio = atr / prices_df["close"].tail(period)
+
+#     # Generate signal based on volatility regime
+#     current_vol_regime = vol_regime.iloc[-1]
+#     vol_z = vol_z_score.iloc[-1]
+
+#     if current_vol_regime < 0.8 and vol_z < -1:
+#         signal = "bullish"  # Low vol regime, potential for expansion
+#         confidence = min(abs(vol_z) / 3, 1.0)
+#     elif current_vol_regime > 1.2 and vol_z > 1:
+#         signal = "bearish"  # High vol regime, potential for contraction
+#         confidence = min(abs(vol_z) / 3, 1.0)
+#     else:
+#         signal = "neutral"
+#         confidence = 0.5
+
+#     return {
+#         "signal": signal,
+#         "confidence": confidence,
+#         "metrics": {
+#             "historical_volatility": float(hist_vol.iloc[-1]),
+#             "volatility_regime": float(current_vol_regime),
+#             "volatility_z_score": float(vol_z),
+#             "atr_ratio": float(atr_ratio.iloc[-1]),
+#         },
+#     }
+
 def calculate_volatility_signals(prices_df):
     """
-    Volatility-based trading strategy based on historical volatility and ATR ratio
-    Inspired by the Momentum Alligator strategy:
-    https://www.tradingview.com/script/u31hDmOU-Momentum-Alligator-4h-Bitcoin-Strategy/?utm_source=chatgpt.com
-
-    and: https://coinrule.com/blog/learn/how-to-calculate-volatility-in-crypto-and-stocks-a-complete-guide/
+    Volatility-based trading strategy
     """
+    # Get the historical price data
+
+    prices = get_prices(
+        slug="ohlcv/bitcoin",
+        start_date="2024-06-07",
+        end_date="2024-08-08",
+        time_interval="1d"
+    )
+
+    # Convert prices to a DataFrame
+    prices_df = prices_to_df(prices)
     # Calculate various volatility metrics
-    # pct_change() is a function in the pandas library that calculates the percentage change between 
-    # each element in a DataFrame or Series and the previous element.
-    period = 84 
     returns = prices_df["close"].pct_change()
 
-    # Historical volatility. daily closing prices over 2 weeks.
-    hist_vol_2m = returns.rolling(period).std() * math.sqrt(6*365)
-    hist_vol = hist_vol_2m.tail(period)
+    # Historical volatility
+    hist_vol = returns.rolling(30).std() * math.sqrt(365)
 
-    # Volatility regime detection， minimum 2 months of data to calculate the regime
-    #vol_ma = hist_vol_2m.rolling(180).mean()
-    vol_ma = hist_vol_2m.rolling(180).mean().tail(period) # 30d * 6
+    # Volatility regime detection
+    vol_ma = hist_vol.rolling(90).mean()
     vol_regime = hist_vol / vol_ma
 
     # Volatility mean reversion
-    vol_z_score = (hist_vol - vol_ma) / hist_vol_2m.rolling(180).std().tail(period)
+    vol_z_score = (hist_vol - vol_ma) / hist_vol.rolling(90).std()
 
     # ATR ratio
-    prices_df = prices_df.tail(period)  # Ensure we only use the last 2 weeks of data
     atr = calculate_atr(prices_df)
-    atr_ratio = atr / prices_df["close"].tail(period)
+    atr_ratio = atr / prices_df["close"]
 
     # Generate signal based on volatility regime
     current_vol_regime = vol_regime.iloc[-1]

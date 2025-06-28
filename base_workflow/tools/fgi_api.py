@@ -33,5 +33,5 @@ def get_fear_and_greed_index() -> FearGreedIndex:
     
 if __name__ == "__main__":
     # Example usage
-    fgi = get_fear_greed_index()
+    fgi = get_fear_and_greed_index()
     print(f"Fear and Greed Index: {fgi.value}, Classification: {fgi.classification}, Updated at: {fgi.updated_at}")

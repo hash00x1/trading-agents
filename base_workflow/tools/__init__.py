@@ -49,6 +49,7 @@ __all__ = [
     'get_sentiment_negative_total',
     'get_sentiment_positive_total',
     'get_sentiment_balance_total',
+    'get_fear_and_greed_index',
     'get_crypto_social_news_openai',
     'get_crypto_global_news_openai'
 ]

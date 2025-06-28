@@ -7,17 +7,14 @@ import pandas as pd
 import numpy as np
 import json
 
-from base_workflow.tools.api_price import (get_twitter_positive_sentiment_score, 
-                       get_twitter_negative_sentiment_score, 
-                       get_reddit_negative_sentiment_score, 
-                       get_reddit_positive_sentiment_score,
-                       get_telegram_positive_sentiment_score,
-                       get_telegram_negative_sentiment_score,)
+from base_workflow.tools import (get_sentiment_positive_total,
+                                           get_sentiment_negative_total,
+                                           get_sentiment_balance_total)
 
 
 ##### Social Media Sentiment Agent #####
-# getting the sentiment scores of three main media Telegram, Twitter, Reddit from santiment API #
-# Sentiment Analysis
+# the sentiment scores of media scores from santiment API #
+# 
 # Calculate a weighted sentiment score (sentiment_score) by aggregating sentiment data from Telegram, Twitter, and YouTube
 # Social Volume analysis
 # combine the discussion volume (volume_score) from Telegram, Twitter, and YouTube. A higher discussion volume typically 
@@ -57,8 +54,8 @@ def sentiment_agent(state: AgentState):
         # Calculate the sentiment score of the news.
 
         # Set the weights for each source to calculate the overall sentiment score
-        social_media_weight = 0.4
-        news_weight = 0.6
+        social_media_weight = 0.5
+        fear_and_greedy_weight = 0.5
 
 
         # Get the signals from the insider trades
