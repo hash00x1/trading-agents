@@ -97,12 +97,10 @@ def technical_analyst_agent(state: AgentState):
 
         # Combine all signals using a weighted ensemble approach
         strategy_weights = {
-            "trend": 0.25,
+            "trend": 0.30,
             "mean_reversion": 0.20,
-            "momentum": 0.25,
-            "volatility": 0.15,
-            "stat_arb": 0.15,
-        }
+            "momentum": 0.30,
+            "volatility": 0.20        }
 
         progress.update_status("technical_analyst_agent", ticker, "Combining signals")
         combined_signal = weighted_signal_combination(

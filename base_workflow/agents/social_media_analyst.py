@@ -13,15 +13,30 @@ from base_workflow.tools import (get_sentiment_positive_total,
 
 
 ##### Social Media Sentiment Agent #####
-# the sentiment scores of media scores from santiment API #
-# 
-# Calculate a weighted sentiment score (sentiment_score) by aggregating sentiment data from Telegram, Twitter, and YouTube
+# the sentiment API from santiment
+# sentiment_weighted_total: An improved version of the Sentiment Balance that adjusts the values by considering the number of mentions, 
+#                            standardizing data to make diverse asset sentiments comparable.
+# sentiment_negative_total, sentiment_positive_total: Shows how many mentions of a term/asset are expressed in a positive/negative manner.
+# sentiment_balance_total:  The difference between Positive Sentiment and Negative Sentiment
+# social_volume_total, 
+# social_volume_total_change_30d,
+# social_volume_total_change_7d, 
+# social_volume_total_change_1d,
+# fear and greed index 
+##########################################
 # Social Volume analysis
-# combine the discussion volume (volume_score) from Telegram, Twitter, and YouTube. A higher discussion volume typically 
-# indicates increased market interest in an asset, which could be a precursor to price fluctuations
-# Trading SIgnal Generation
-# based on the sentiment_score and volume_score, generate a trading signal (bullish, bearish, neutral)
+# mainly use momentum indicates the changes in social media activity around a cryptocurrency
+# sentiment_weighted_total: 看看怎么用
 
+# sentiment_positive_total: 计算momentum
+# sentiment_negative_total: 计算momentum,两个看看哪个的增长速度快
+# sentiment_balance_total: 看看是正面高还是负面高
+# social_volume: 看看是否有人持续关注，并且关注的人数在不断增长
+
+# fear_and_greed_index:
+# 0-100, 0-50是恐惧，50-100是贪婪
+# 0-25是极度恐惧，25-50是恐惧，50-75是贪婪，75-100是极度
+##############################################################################################################
 
 
 def sentiment_agent(state: AgentState):
@@ -41,21 +56,9 @@ def sentiment_agent(state: AgentState):
     for slug in slugs:
         progress.update_status("social_media_sentiment_agent", slug, "Fetching Sentiment Scores from Telegram, Twitter, and YouTube")
 
-        # Get the Sentiment Scores from Telegram, Twitter, and YouTube
-        telegram_positive_sentiment_score = get_telegram_positive_sentiment_score(slug=slug, start_date=start_date, end_date=end_date)
-        telegram_negative_sentiment_score = get_telegram_negative_sentiment_score(slug=slug, start_date=start_date, end_date=end_date)
-        twitter_positive_sentiment_score = get_twitter_positive_sentiment_score(slug=slug, start_date=start_date, end_date=end_date)
-        twitter_negative_sentiment_score = get_twitter_negative_sentiment_score(slug=slug, start_date=start_date, end_date=end_date)
-        reddit_positive_sentiment_score = get_reddit_positive_sentiment_score(slug=slug, start_date=start_date, end_date=end_date)
-        reddit_negative_sentiment_score = get_reddit_negative_sentiment_score(slug=slug, start_date=start_date, end_date=end_date)
-        # Calculate the sentiment score
         
         progress.update_status("social_media_sentiment_agent", slug, "Analyzing Sentiment Scores")
         # Calculate the sentiment score of the news.
-
-        # Set the weights for each source to calculate the overall sentiment score
-        social_media_weight = 0.5
-        fear_and_greedy_weight = 0.5
 
 
         # Get the signals from the insider trades

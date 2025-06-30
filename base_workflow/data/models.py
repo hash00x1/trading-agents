@@ -30,6 +30,22 @@ class SocialDominanceResponse(BaseModel):
     ticker: str
     dominance_values: list[SocialDominanceValue]
 
+class SocialVolumeValue(BaseModel):
+    time: str
+    value: int
+
+class SocialVolumeResponse(BaseModel):
+    ticker: str
+    dominance_values: list[SocialVolumeValue]
+
+class SocialVolumeChange(BaseModel):
+    time: str
+    value: float
+
+class SocialVolumeChangeResponse(BaseModel):
+    ticker: str
+    dominance_values: list[SocialVolumeChange]
+
 class FearGreedIndex(BaseModel):
     value: int
     classification: str
