@@ -13,17 +13,16 @@ from .api_price import (
 # from .news import scrape_news_pages, get_crypto_social_news_openai, get_crypto_global_news_openai
 
 from .api_santiment import (
-    get_telegram_positive_sentiment_score,
-    get_telegram_negative_sentiment_score,
-    get_reddit_negative_sentiment_score,
-    get_reddit_positive_sentiment_score,
-    get_twitter_negative_sentiment_score,
-    get_twitter_positive_sentiment_score,
+    get_sentiment_weighted_total,
+    get_social_volume_total,
+    get_social_volume_total_change_1d,
+    get_social_volume_total_change_7d,
+    get_social_volume_total_change_30d,
+    get_sentiment_balance_total,
     get_sentiment_negative_total,
     get_sentiment_positive_total,
-    get_sentiment_balance_total )
-from .fgi_api import (
-    get_fear_and_greed_index)
+    get_fear_and_greed_index,
+    )
 from .openai_news_crawler import (
     get_crypto_social_news_openai,
     get_crypto_global_news_openai
@@ -33,25 +32,22 @@ __all__ = [
 	'ask_user',
 	'execute_python',
     'tavily_search',
-    # 'scrape_webpages',
     'create_outline',
     'edit_document',
     'python_repl_tool',
     'write_document',
     'read_document',
     'get_prices',
-    'scrape_news_pages',
+    'get_sentiment_weighted_total',
+    'get_social_volume_total',
+    'get_social_volume_total_change_1d',
+    'get_social_volume_total_change_7d',
+    'get_social_volume_total_change_30d',
+    'get_sentiment_balance_total',
     'get_crypto_social_news_openai',
     'get_crypto_global_news_openai',
-    'get_telegram_positive_sentiment_score',
-    'get_telegram_negative_sentiment_score',
-    'get_reddit_negative_sentiment_score',
-    'get_reddit_positive_sentiment_score',
-    'get_twitter_negative_sentiment_score',
-    'get_twitter_positive_sentiment_score',
     'get_sentiment_negative_total',
     'get_sentiment_positive_total',
-    'get_sentiment_balance_total',
     'get_fear_and_greed_index',
     'get_crypto_social_news_openai',
     'get_crypto_global_news_openai'

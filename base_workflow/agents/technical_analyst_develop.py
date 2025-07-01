@@ -81,7 +81,6 @@ def technical_analyst_agent(state: AgentState):
         # Convert prices to a DataFrame
         prices_df = prices_to_df(prices)
         # print (prices_df)
-        # TODO: Set different time intervals for the following analysis
         
         progress.update_status("technical_analyst_agent", ticker, "Calculating trend signals")
         trend_signals = calculate_trend_signals(prices_df)

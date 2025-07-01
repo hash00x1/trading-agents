@@ -47,7 +47,7 @@ class SocialVolumeChangeResponse(BaseModel):
     dominance_values: list[SocialVolumeChange]
 
 class FearGreedIndex(BaseModel):
-    value: int
+    value: str
     classification: str
     updated_at: str 
     

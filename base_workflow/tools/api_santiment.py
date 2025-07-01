@@ -1,10 +1,19 @@
+from ast import Str
 import os
+from unittest import skip
 from duckduckgo_search.cli import news
+from fontTools.misc.plistlib import _date_parser
 from humanfriendly.text import compact
 import pandas as pd
+from pydantic import datetime_parse
 import requests
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+from typing import Optional
+from io import StringIO
+
+from test.test_threading_local import target
+
 
 from base_workflow.data.cache import get_cache
 from base_workflow.data.models import (
@@ -251,54 +260,51 @@ def get_sentiment_balance_total(slug: str, start_date: str, end_date: str) -> li
     # _cache.set_telegram_sentiment_score([v.model_dump() for v in dominance_values])
     return sentiment_balance_total
 
-
-def get_fear_and_greed_index() -> FearGreedIndex:
+# check how to get data of responded date
+def get_fear_and_greed_index(target_date: Optional[str] = None) -> FearGreedIndex:
     """
     Fetch the Fear and Greed Index from the Alternative.me API.
     
     Returns:
-        FearGreedIndex: A structured object containing the index value, classification, and last updated time.
+        FearGreedIndex: A structured object containing the index value, classification.
     """
     try:
-        response = requests.get("https://api.alternative.me/fng/")
-        data = response.json()
-        
-        index_data = data["data"][0]
+        # If target_date is provided, format it to the required date format
+        if target_date:
+            response = requests.get("https://api.alternative.me/fng/?limit=0&date_format=cn")
+            fng = response.json()
+            df = pd.DataFrame(fng["data"])
+            index_data = df[df["timestamp"] == target_date]
+            index_value = str(index_data["value"].iloc[0])
+            classification = str(index_data["value_classification"].iloc[0])
+            updated_at = target_date
+        else:
+            response = requests.get("https://api.alternative.me/fng/?limit=1&date_format=cn")
+            data = response.json()           
+            index_data = data["data"][0]
+            index_value = str(index_data["value"])
+            classification = index_data["value_classification"]
+            updated_at = index_data["timestamp"]
+            # dt = datetime.strptime(timestamp, "%d-%m-%Y").replace(tzinfo=timezone.utc)
+            # updated_at = dt.strftime("%Y-%m-%d")
 
-        index_value = int(index_data["value"])
-        classification = index_data["value_classification"]
-        timestamp = int(index_data["timestamp"])
-
-       
-        updated_at = datetime.fromtimestamp(timestamp, timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+   
         result = FearGreedIndex(
             value=index_value,
             classification=classification,
             updated_at=updated_at
         )
         return result
+
+
     except requests.RequestException as e:
         print(f"Error fetching Fear and Greed Index: {e}")
         return FearGreedIndex(value=0, classification="neutral", updated_at="Unknown") # set to neutral if error occurs
     
 if __name__ == "__main__":
     # Example usage
-    fgi = get_fear_and_greed_index()
-    print(f"Fear and Greed Index: {fgi.value}, Classification: {fgi.classification}, Updated at: {fgi.updated_at}")
+    fgi_1 = get_fear_and_greed_index("2025-07-01")
+    print(f"Fear and Greed Index: {fgi_1.value}, Classification: {fgi_1.classification}, Updated at: {fgi_1.updated_at}")
+    fgi_2 = get_fear_and_greed_index()
+    print(f"Fear and Greed Index: {fgi_2.value}, Classification: {fgi_2.classification}, Updated at: {fgi_2.updated_at}")
 
-    # # test get_prices
-    # slug = "social_volume_total_change_30d/bitcoin"       
-    # # start_date="2024-06-07"
-    # # end_date="2025-05-08"
-    # # end_date = datetime.utcnow().date().isoformat()
-    # end_date = "2025-05-08"
-    # end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-    # start_dt = end_dt - timedelta(weeks=2)
-    # start_date = start_dt.date().isoformat()
-
-    # social_volume_total_change_7d = get_social_volume_total_change_1d(
-    #     slug,
-    #     end_date=end_date,
-    #     start_date=start_date,
-    # )
-    # print(social_volume_total_change_7d)
