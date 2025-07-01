@@ -299,7 +299,7 @@ def get_fear_and_greed_index(target_date: Optional[str] = None) -> FearGreedInde
 
     except requests.RequestException as e:
         print(f"Error fetching Fear and Greed Index: {e}")
-        return FearGreedIndex(value=0, classification="neutral", updated_at="Unknown") # set to neutral if error occurs
+        return FearGreedIndex(value='0', classification="neutral", updated_at="Unknown") # set to neutral if error occurs
     
 if __name__ == "__main__":
     # Example usage
