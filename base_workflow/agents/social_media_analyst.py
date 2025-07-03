@@ -3,10 +3,12 @@ from base_workflow.graph.state import AgentState
 from base_workflow.utils.progress import progress
 
 from datetime import datetime, timedelta
-
 import pandas as pd
 import numpy as np
 import json
+from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel
+from typing_extensions import Literal
 
 from base_workflow.tools import (
     get_sentiment_weighted_total,
@@ -20,7 +22,13 @@ from base_workflow.tools import (
     get_fear_and_greed_index,
     )
 
-
+class SocialMediaAnalystSignal(BaseModel):
+    """
+    Container for the social media analyst output signal.
+    """
+    signal: Literal["bullish", "bearish", "neutral"]
+    confidence: float
+    reasoning: str
 
 ##### Social Media Sentiment Agent #####
 # the sentiment API from santiment
@@ -48,8 +56,10 @@ from base_workflow.tools import (
 ##############################################################################################################
 
 
-def sentiment_analyst_agent(state: AgentState):
-    """Analyzes market sentiment and generates trading signals for multiple slugs."""
+def social_media_analyst_agent(state: AgentState):
+    """Analyzes sentiment signals and generates trading signals for multiple slugs."""
+    """The initiative lies with the sentiment analyst, 
+    who decides to generate reports and gives the final trading signals."""
     # data = state.get("data", {})
     # end_date = data.get("end_date")
     # tickers = data.get("tickers")
@@ -70,30 +80,32 @@ def sentiment_analyst_agent(state: AgentState):
 
     for slug in slugs:
         progress.update_status("sentiment_analyst_agent", slug, "social_sentiment_analysing")
-
-        sentiment_weighted_data = get_sentiment_weighted_total(
-            slug = 'social_sentiment_weighted_total' + slug,
-            end_date=end_date,
-            start_date=start_date,
-        )
+    
+        # 主要观察balance_total, 并且观察positive_total 和 negative_total的变化趋势并作为参考。
         sentiment_balance_total = get_sentiment_balance_total(
             slug = 'social_sentiment_weighted_total' + slug,
             end_date=end_date,
             start_date=start_date,    
         )
+
         sentiment_negative_total = get_sentiment_negative_total(
             slug = 'social_sentiment_negative_total' + slug,
             end_date=end_date,
             start_date=start_date,
         )
+
         sentiment_positive_total = get_sentiment_positive_total(
             slug = 'social_sentiment_positive_total' + slug,
             end_date=end_date,
             start_date=start_date,
         )
 
+
+        # 看看这部分是不是有在不断增加
+        # 都是从这一刻往前算的
+
         progress.update_status("sentiment_analyst_agent", slug, "social_volume_analysing")
-        social_volume_total_change_7d = get_social_volume_total_change_1d(
+        social_volume_total_change_7d = get_social_volume_total_change_7d(
             slug = 'social_volume_total_change_7d' + slug,
             end_date=end_date,
             start_date=start_date,
@@ -104,16 +116,40 @@ def sentiment_analyst_agent(state: AgentState):
             end_date=end_date,
             start_date=start_date,
         )
+        print(social_volume_total_change_30d)
         social_volume_total_change_1d = get_social_volume_total_change_1d(
             slug = 'social_volume_total_change_1d' + slug,
             end_date=end_date,
             start_date=start_date,
+        ) 
+        
+        # 用多个时间窗口（例如 1 日、3 日、7 日）分别计算情绪 neg pos momentum
+        # 任意两个pos_mom > 0 就认为是正面情绪，否则负面情绪。
+        # Can be used as an auxiliary sentiment analysis tool， 
+        # calculate also the momentum of this value to show the trend
+        sentiment_weighted_data = get_sentiment_weighted_total(
+            slug = 'social_sentiment_weighted_total' + slug,
+            end_date=end_date,
+            start_date=start_date,
         )
+        # check 
+        # sentiment_weighted_signals = {
+        #     "signal": "positive",
+        #     "momentum": sentiment_weighted_data.momentum
+        # }
+        # sentiment_weighted_signals = {
+        #     "signal": "negative",
+        #     "momentum": sentiment_weighted_data.momentum
+        # }
+        # sentiment_weighted_signals = {
+        #     "signal": "neutral",
+        #     "momentum": sentiment_weighted_data.momentum
+        # }
 
         progress.update_status("sentiment_analyst_agent", slug, "fear_and_greed_index_analysing")
         # fear_and_greed_index now only support today's data.
-        fear_and_greed_index = get_fear_and_greed_index()
-        fear_and_greed_signals_confidence = fear_and_greed_index.value          
+        fear_and_greed_index = get_fear_and_greed_index(target_date = end_date)
+        fear_and_greed_signals_confidence = fear_and_greed_index.value     
         fear_and_greed_signals_classification = fear_and_greed_index.classification
         if fear_and_greed_signals_classification == "fear":
             fear_and_greed_signals = {
@@ -155,10 +191,32 @@ def sentiment_analyst_agent(state: AgentState):
                 }
             }
         
+        social_media_analysis_data[slug] = {
+        "signal": signal,
+        "score": total_score,
+        "max_score": max_possible_score,
+        "growth_analysis": growth_analysis,
+        "valuation_analysis": valuation_analysis,
+        "fundamentals_analysis": fundamentals_analysis,
+        "sentiment_analysis": sentiment_analysis,
+        "insider_activity": insider_activity,
+        }
+
+        progress.update_status("peter_lynch_agent", slug, "social_media_analysis")
+        social_media_analysis_output = social_media_analysis_output(
+            slug=slug,
+            analysis_data=social_media_analysis_data[slug],
+            model_name=state["metadata"]["model_name"],
+            model_provider=state["metadata"]["model_provider"],
+        )
+
+        social_media_analysis[slug] = {
+            "signal": lynch_output.signal,
+            "confidence": lynch_output.confidence,
+            "reasoning": lynch_output.reasoning,
+        }
 
         progress.update_status("sentiment_agent", slug, "Done")
-
-
     
     # Create the technical analyst message
     message = HumanMessage(
@@ -166,21 +224,88 @@ def sentiment_analyst_agent(state: AgentState):
         name="sentiment_analyst_agent",
     )
 
+    if state["metadata"].get("show_reasoning"):
+        show_agent_reasoning(lynch_analysis, "Peter Lynch Agent")
 
-    # Print the reasoning if the flag is set
-    # if state["metadata"]["show_reasoning"]:
-    #     show_agent_reasoning(sentiment_analysis, "Sentiment Analysis Agent")
+    # Save signals to state
+    state["data"]["analyst_signals"]["peter_lynch_agent"] = lynch_analysis
 
-    # Add the signal to the analyst_signals list
-    # state["data"]["analyst_signals"]["sentiment_agent"] = sentiment_analysis
-    # Check here how was it done in the original work.
-    return {
-        "messages": [message],
-        "data": data,
-    }
+    return {"messages": [message], "data": state["data"]}
+
+
+
+def generate_social_media_analyst_output(
+    slug: str,
+    analysis_data: dict[str, any],
+    model_name: str,
+    model_provider: str,
+):
+    """
+    Generates a final JSON report of social_media_analyst.
+    """
+    template = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                """You are a Peter Lynch AI agent. You make investment decisions based on Peter Lynch's well-known principles:
+                
+                1. Invest in What You Know: Emphasize understandable businesses, possibly discovered in everyday life.
+                2. Growth at a Reasonable Price (GARP): Rely on the PEG ratio as a prime metric.
+                3. Look for 'Ten-Baggers': Companies capable of growing earnings and share price substantially.
+                4. Steady Growth: Prefer consistent revenue/earnings expansion, less concern about short-term noise.
+                5. Avoid High Debt: Watch for dangerous leverage.
+                6. Management & Story: A good 'story' behind the stock, but not overhyped or too complex.
+                
+                When you provide your reasoning, do it in Peter Lynch's voice:
+                - Cite the PEG ratio
+                - Mention 'ten-bagger' potential if applicable
+                - Refer to personal or anecdotal observations (e.g., "If my kids love the product...")
+                - Use practical, folksy language
+                - Provide key positives and negatives
+                - Conclude with a clear stance (bullish, bearish, or neutral)
+                
+                Return your final output strictly in JSON with the fields:
+                {{
+                  "signal": "bullish" | "bearish" | "neutral",
+                  "confidence": 0 to 100,
+                  "reasoning": "string"
+                }}
+                """,
+            ),
+            (
+                "human",
+                """Based on the following analysis data for {ticker}, produce your Peter Lynch–style investment signal.
+
+                Analysis Data:
+                {analysis_data}
+
+                Return only valid JSON with "signal", "confidence", and "reasoning".
+                """,
+            ),
+        ]
+    )
+
+    prompt = template.invoke({"analysis_data": json.dumps(analysis_data, indent=2), "ticker": ticker})
+
+    def create_default_signal():
+        return SocialMediaAnalystSignal(
+            signal="neutral",
+            confidence=0.0,
+            reasoning="Error in analysis; defaulting to neutral"
+        )
+
+    return call_llm(
+        prompt=prompt,
+        model_name=model_name,
+        model_provider=model_provider,
+        pydantic_model=SocialMediaAnalystSignal,
+        agent_name="peter_lynch_agent",
+        default_factory=create_default_signal,
+    )
 
 
 if __name__ == "__main__":
+    # At the end only need the end_date, start_date should be two weeks or one month before the end_date
     test_state = AgentState(
         messages=[],
         data={
@@ -193,5 +318,5 @@ if __name__ == "__main__":
     )
 
     # Run the agent
-    result = sentiment_analyst_agent(test_state)
+    result = social_media_analyst_agent(test_state)
     print(result)

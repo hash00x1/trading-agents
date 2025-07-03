@@ -17,8 +17,6 @@ from test.test_threading_local import target
 
 from base_workflow.data.cache import get_cache
 from base_workflow.data.models import (
-    CompanyNews,
-    CompanyNewsResponse,
     SocialDominanceValue,
     SocialDominanceResponse,
     SocialSentimentScoreResponse,
@@ -27,14 +25,6 @@ from base_workflow.data.models import (
     SocialVolumeResponse,
     SocialVolumeChange,
     SocialVolumeChangeResponse,
-    FinancialMetrics,
-    FinancialMetricsResponse,
-    Price,
-    PriceResponse,
-    LineItem,
-    LineItemResponse,
-    InsiderTrade,
-    InsiderTradeResponse,
 )
 import requests
 from base_workflow.data.models import FearGreedIndex

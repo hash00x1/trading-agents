@@ -59,7 +59,7 @@ class Researchmanager(DialogueSimulatorAgent):
 
 
 # Initialize the Trader agent
-trader = Trader(trader_agents=[bullish_researcher, bearish_researcher], rounds=6)       
+# trader = Trader(trader_agents=[bullish_researcher, bearish_researcher], rounds=6)       
 
 # Test the Trader agent
 # if __name__ == "__main__":

@@ -49,7 +49,7 @@ class Riskmanager(DialogueSimulatorAgent):
 
 
 # Initialize the Trader agent
-portfolio_manager = PortfolioManager(portfolio_agents = [aggressive_risk_manager, conservative_risk_manager, neutral_risk_manager], rounds=6)       
+# portfolio_manager = PortfolioManager(portfolio_agents = [aggressive_risk_manager, conservative_risk_manager, neutral_risk_manager], rounds=6)       
 
 # Example usage
 # if __name__ == "__main__":
