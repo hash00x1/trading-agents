@@ -240,14 +240,7 @@ def social_media_analyst(state: AgentState):
             fear_and_greed_index_classification=fgic, 
             fear_and_greed_index_value=fgi)
 
-        social_media_analyst_agent = create_react_agent(
-            llm,
-            tools=[],
-            state_modifier=social_media_analyst_system_message,
-        )
-        # Run the agent
-        # message = news_analyst_agent.invoke([input_message])
-        # analyst_message = social_media_analyst_agent.invoke({"messages":messages})
+        # Just invoke the message is enough here.
         analyst_message = llm.invoke([HumanMessage(content=social_media_analyst_system_message)])
         content = str(analyst_message.content)
         print(content)
