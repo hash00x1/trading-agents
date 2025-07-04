@@ -1,14 +1,13 @@
 from langchain_core.messages import HumanMessage
 from base_workflow.graph.state import AgentState
 from base_workflow.utils.progress import progress
-
-from datetime import datetime, timedelta
-import pandas as pd
-import numpy as np
+from langchain_openai import ChatOpenAI
+from langgraph.prebuilt import create_react_agent
 import json
-from langchain_core.prompts import ChatPromptTemplate
+import re
 from pydantic import BaseModel
 from typing_extensions import Literal
+from langgraph.graph import StateGraph
 
 from base_workflow.tools import (
     get_sentiment_weighted_total,
@@ -28,7 +27,7 @@ class SocialMediaAnalystSignal(BaseModel):
     """
     signal: Literal["bullish", "bearish", "neutral"]
     confidence: float
-    reasoning: str
+    report: str
 
 ##### Social Media Sentiment Agent #####
 # the sentiment API from santiment
@@ -56,7 +55,7 @@ class SocialMediaAnalystSignal(BaseModel):
 ##############################################################################################################
 
 
-def social_media_analyst_agent(state: AgentState):
+def social_media_analyst(state: AgentState):
     """Analyzes sentiment signals and generates trading signals for multiple slugs."""
     """The initiative lies with the sentiment analyst, 
     who decides to generate reports and gives the final trading signals."""
@@ -69,254 +68,258 @@ def social_media_analyst_agent(state: AgentState):
     # start_dt = end_dt - timedelta(weeks=2)
     # start_date = start_dt.date().isoformat()
     # Change the start_data to be two weeks before the end_date
-    data = state["data"]
-    start_date = data["start_date"]
-    end_date = data["end_date"]
+    messages = state.get("messages", [])
+    data = state.get("data", {})
+    end_date = data.get("end_date")
+    slugs = data.get("slugs", [])
+    llm = ChatOpenAI(model='gpt-4o-mini')
     interval = data["time_interval"]
-    slugs = data["tickers"]
 
     # Initialize sentiment analysis for each slug
-    sentiment_analysis = {}
+    social_media_sentiment_data = {}
+    social_media_sentiment_analysis = {}
 
     for slug in slugs:
         progress.update_status("sentiment_analyst_agent", slug, "social_sentiment_analysing")
     
         # 主要观察balance_total, 并且观察positive_total 和 negative_total的变化趋势并作为参考。
-        sentiment_balance_total = get_sentiment_balance_total(
-            slug = 'social_sentiment_weighted_total' + slug,
-            end_date=end_date,
-            start_date=start_date,    
-        )
+        # 先把这部分的功能都实现，然后作为数据，和说明一起喂给analyst。
+        # sentiment_balance_total = get_sentiment_balance_total(
+        #     slug = 'social_sentiment_weighted_total' + slug,
+        #     end_date=end_date,
+        #     start_date=start_date,    
+        # )
+        # print(sentiment_balance_total)
+        # sentiment_negative_total = get_sentiment_negative_total(
+        #     slug = 'social_sentiment_negative_total' + slug,
+        #     end_date=end_date,
+        #     start_date=start_date,
+        # )
 
-        sentiment_negative_total = get_sentiment_negative_total(
-            slug = 'social_sentiment_negative_total' + slug,
-            end_date=end_date,
-            start_date=start_date,
-        )
-
-        sentiment_positive_total = get_sentiment_positive_total(
-            slug = 'social_sentiment_positive_total' + slug,
-            end_date=end_date,
-            start_date=start_date,
-        )
+        # sentiment_positive_total = get_sentiment_positive_total(
+        #     slug = 'social_sentiment_positive_total' + slug,
+        #     end_date=end_date,
+        #     start_date=start_date,
+        # )
 
 
-        # 看看这部分是不是有在不断增加
-        # 都是从这一刻往前算的
+        # # 看看这部分是不是有在不断增加
+        # # 都是从这一刻往前算的
 
-        progress.update_status("sentiment_analyst_agent", slug, "social_volume_analysing")
-        social_volume_total_change_7d = get_social_volume_total_change_7d(
-            slug = 'social_volume_total_change_7d' + slug,
-            end_date=end_date,
-            start_date=start_date,
-        )
-        # print(social_volume_total_change_7d)
-        social_volume_total_change_30d = get_social_volume_total_change_30d(
-            slug = 'social_volume_total_change_30d' + slug,
-            end_date=end_date,
-            start_date=start_date,
-        )
-        print(social_volume_total_change_30d)
-        social_volume_total_change_1d = get_social_volume_total_change_1d(
-            slug = 'social_volume_total_change_1d' + slug,
-            end_date=end_date,
-            start_date=start_date,
-        ) 
+        # progress.update_status("sentiment_analyst_agent", slug, "social_volume_analysing")
+        # social_volume_total_change_7d = get_social_volume_total_change_7d(
+        #     slug = 'social_volume_total_change_7d' + slug,
+        #     end_date=end_date,
+        #     start_date=start_date,
+        # )
+        # # print(social_volume_total_change_7d)
+        # social_volume_total_change_30d = get_social_volume_total_change_30d(
+        #     slug = 'social_volume_total_change_30d' + slug,
+        #     end_date=end_date,
+        #     start_date=start_date,
+        # )
+        # print(social_volume_total_change_30d)
+        # social_volume_total_change_1d = get_social_volume_total_change_1d(
+        #     slug = 'social_volume_total_change_1d' + slug,
+        #     end_date=end_date,
+        #     start_date=start_date,
+        # ) 
         
-        # 用多个时间窗口（例如 1 日、3 日、7 日）分别计算情绪 neg pos momentum
-        # 任意两个pos_mom > 0 就认为是正面情绪，否则负面情绪。
-        # Can be used as an auxiliary sentiment analysis tool， 
-        # calculate also the momentum of this value to show the trend
-        sentiment_weighted_data = get_sentiment_weighted_total(
-            slug = 'social_sentiment_weighted_total' + slug,
-            end_date=end_date,
-            start_date=start_date,
-        )
-        # check 
-        # sentiment_weighted_signals = {
-        #     "signal": "positive",
-        #     "momentum": sentiment_weighted_data.momentum
-        # }
-        # sentiment_weighted_signals = {
-        #     "signal": "negative",
-        #     "momentum": sentiment_weighted_data.momentum
-        # }
-        # sentiment_weighted_signals = {
-        #     "signal": "neutral",
-        #     "momentum": sentiment_weighted_data.momentum
-        # }
+        # # 用多个时间窗口（例如 1 日、3 日、7 日）分别计算情绪 neg pos momentum
+        # # 任意两个pos_mom > 0 就认为是正面情绪，否则负面情绪。
+        # # Can be used as an auxiliary sentiment analysis tool， 
+        # # calculate also the momentum of this value to show the trend
+        # sentiment_weighted_data = get_sentiment_weighted_total(
+        #     slug = 'social_sentiment_weighted_total' + slug,
+        #     end_date=end_date,
+        #     start_date=start_date,
+        # )
+        # # check 
+        # # sentiment_weighted_signals = {
+        # #     "signal": "positive",
+        # #     "momentum": sentiment_weighted_data.momentum
+        # # }
+        # # sentiment_weighted_signals = {
+        # #     "signal": "negative",
+        # #     "momentum": sentiment_weighted_data.momentum
+        # # }
+        # # sentiment_weighted_signals = {
+        # #     "signal": "neutral",
+        # #     "momentum": sentiment_weighted_data.momentum
+        # # }
 
-        progress.update_status("sentiment_analyst_agent", slug, "fear_and_greed_index_analysing")
-        # fear_and_greed_index now only support today's data.
         fear_and_greed_index = get_fear_and_greed_index(target_date = end_date)
-        fear_and_greed_signals_confidence = fear_and_greed_index.value     
-        fear_and_greed_signals_classification = fear_and_greed_index.classification
-        if fear_and_greed_signals_classification == "fear":
-            fear_and_greed_signals = {
-                "signal": "fear",
-                "confidence": fear_and_greed_signals_confidence,
-            }
-        elif fear_and_greed_signals_classification == "greed":  
-            fear_and_greed_signals = {
-                "signal": "greed",
-                "confidence": fear_and_greed_signals_confidence,
-            }
-        else:
-            fear_and_greed_signals = {
-                "signal": "neutral",
-                "confidence": fear_and_greed_signals_confidence,
-            }
+        fgic=fear_and_greed_index.classification, 
+        fgi=fear_and_greed_index.value
+        fear_and_greed_signals = {
+            "classification": fgic,
+            "confidence": fgi ,
+        }
 
-
-        
-
-
-
-
-        sentiment_analysis[slug] = {
-            # "signal": overall_signal,
-            # "confidence": confidence,
+        social_media_sentiment_data[slug] = {
+            # "signal": overall_signal could be generated by the social media analyst.
+            # "confidence": confidence could also be generated by the sentiment_analyst.
             # "strategy_signals": {
             #     "social_sentiment_analysis": {
             #         "signal": social_sentiment_signals["signal"],
             #         "confidence": round(social_sentiment_signals["confidence"] * 100),
+            #         "trend": social_volume_signals["trend"]
             #     },
             #     "social_volume_analysis": {
             #         "signal": social_volume_signals["signal"],
             #         "confidence": round(social_volume_signals["confidence"] * 100),
+            #         "trend": social_volume_signals["trend"]
             #     },
+                # "social_weighted_signals": {
+                #     "signal":                    
+                # },
                 "fear_and_greed_index": {
-                    "signal": fear_and_greed_signals["signal"],
+                    "classification": fear_and_greed_signals["classification"],
                     "index": fear_and_greed_signals["confidence"]
                 }
             }
         
-        social_media_analysis_data[slug] = {
-        "signal": signal,
-        "score": total_score,
-        "max_score": max_possible_score,
-        "growth_analysis": growth_analysis,
-        "valuation_analysis": valuation_analysis,
-        "fundamentals_analysis": fundamentals_analysis,
-        "sentiment_analysis": sentiment_analysis,
-        "insider_activity": insider_activity,
-        }
 
-        progress.update_status("peter_lynch_agent", slug, "social_media_analysis")
-        social_media_analysis_output = social_media_analysis_output(
-            slug=slug,
-            analysis_data=social_media_analysis_data[slug],
-            model_name=state["metadata"]["model_name"],
-            model_provider=state["metadata"]["model_provider"],
+        progress.update_status("social_media_analyst", slug, "social_media_analysis")
+        # define the social media analyst
+        social_media_analyst_system_message = """
+        You are a crypto social_media_analyst, 
+        For your reference, the current date is {date}, we are looking at {cryptos}.
+
+        Your main task:
+        - Write a report
+        - Give trading signal
+        - GIve confidence level
+
+        You analysis is based on the following data:
+        -Fear and greed index:
+            - Guided Line: The crypto market is highly emotional: prices rising trigger FOMO (“fear of missing out”), falling prices often cause panic-selling.
+                - Extreme Fear (0–24) → investors are overly pessimistic → potential buying opportunity 
+                - Extreme Greed (75–100) → investors are overly optimistic → risk of correction; consider selling or waiting 
+                - Embrace the contrarian approach: “Be fearful when others are greedy, greedy when others are fearful.”
+            - Your analysis is based on the following data (already extracted):
+                - classification: {fear_and_greed_index_classification}
+                - index: {fear_and_greed_index_value}
+
+
+        Your output must consist of three parts:
+
+        ---
+
+        ### Part 1: **News Sentiment Report**
+        - A structured report summarizing the news and trends.
+        - Evaluation of news credibility and timeliness.
+        - Assessment of the likely market impact.
+        - Discussion of how crypto markets have typically responded to similar news in the past.
+
+        ---
+
+        ### Part 2: **Trading Signal**
+        - Based on the report above, provide a clear trading signal.
+        - The format must be: `Trading Signal: **Buy** / **Hold** / **Sell**`
+        - Please return only the signal, no explanation.
+
+        ---
+
+        ### Part 3: **Confidence Level** 
+        - Provide a confidence level for your signal as a float number.
+        - The format must be: `Confidence Level: <float number>`
+        - This number represents how confident you are in your signal, where:
+            - 1 indicates extremely positive sentiment
+            - 0.5 to 0.9 indicates positive sentiment
+            - 0.1 to 0.4 indicates slightly positive sentiment 
+            - 0 indicates neutral sentiment 
+            - -0.1 to -0.4 indicates slightly negative sentiment
+            - -0.5 to -0.9 indicates negative sentiment
+            - -1 indicates extremely negative sentiment
+        - Please return only the float number, no explanation.
+
+        ---
+        """.format(
+            date=end_date, 
+            cryptos=slug,
+            fear_and_greed_index_classification=fgic, 
+            fear_and_greed_index_value=fgi)
+
+        social_media_analyst_agent = create_react_agent(
+            llm,
+            tools=[],
+            state_modifier=social_media_analyst_system_message,
         )
+        # Run the agent
+        # message = news_analyst_agent.invoke([input_message])
+        analyst_message = social_media_analyst_agent.invoke({"messages":messages})
+        content = analyst_message["messages"][-1].content
+        
+        # Extract News Sentiment Report
+        part1_match = re.search(
+            r"### Part 1: \*\*News Sentiment Report\*\*\n\n(.*?)\n\n### Part 2:", 
+            content, 
+            re.DOTALL
+            )
+        social_media_report = part1_match.group(1).strip() if part1_match else None
+        # print(news_report)
 
-        social_media_analysis[slug] = {
-            "signal": lynch_output.signal,
-            "confidence": lynch_output.confidence,
-            "reasoning": lynch_output.reasoning,
-        }
+        # Extract Trading Signal
+        part2_match = re.search(
+            r"Part 2: \*\*Trading Signal\*\*.*?Trading Signal: \*\*(Buy|Hold|Sell)\*\*", 
+            content, re.DOTALL
+            )
+        trading_signal = part2_match.group(1) if part2_match else None
+        # print(trading_signal)
+        
+        # Extract Confidence Level
+        part3_match = re.search(
+            r"### Part 3: \*\*Confidence Level\*\*.*?Confidence Level: ([\-\d\.]+)",
+            content,
+            re.DOTALL
+        )
+        confidence_level = float(part3_match.group(1)) if part3_match else None
+        # print(confidence_level)
 
-        progress.update_status("sentiment_agent", slug, "Done")
+        social_media_sentiment_analysis[slug] = {
+            "signal": trading_signal,
+            "confidence": confidence_level,
+            "report": social_media_report,
+        }    
+
+        progress.update_status("social_media_analyst", slug, "Done")
     
     # Create the technical analyst message
     message = HumanMessage(
-        content=json.dumps(sentiment_analysis),
+        content=json.dumps(social_media_sentiment_analysis),
         name="sentiment_analyst_agent",
     )
 
-    if state["metadata"].get("show_reasoning"):
-        show_agent_reasoning(lynch_analysis, "Peter Lynch Agent")
-
-    # Save signals to state
-    state["data"]["analyst_signals"]["peter_lynch_agent"] = lynch_analysis
-
     return {"messages": [message], "data": state["data"]}
 
-
-
-def generate_social_media_analyst_output(
-    slug: str,
-    analysis_data: dict[str, any],
-    model_name: str,
-    model_provider: str,
-):
-    """
-    Generates a final JSON report of social_media_analyst.
-    """
-    template = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                """You are a Peter Lynch AI agent. You make investment decisions based on Peter Lynch's well-known principles:
-                
-                1. Invest in What You Know: Emphasize understandable businesses, possibly discovered in everyday life.
-                2. Growth at a Reasonable Price (GARP): Rely on the PEG ratio as a prime metric.
-                3. Look for 'Ten-Baggers': Companies capable of growing earnings and share price substantially.
-                4. Steady Growth: Prefer consistent revenue/earnings expansion, less concern about short-term noise.
-                5. Avoid High Debt: Watch for dangerous leverage.
-                6. Management & Story: A good 'story' behind the stock, but not overhyped or too complex.
-                
-                When you provide your reasoning, do it in Peter Lynch's voice:
-                - Cite the PEG ratio
-                - Mention 'ten-bagger' potential if applicable
-                - Refer to personal or anecdotal observations (e.g., "If my kids love the product...")
-                - Use practical, folksy language
-                - Provide key positives and negatives
-                - Conclude with a clear stance (bullish, bearish, or neutral)
-                
-                Return your final output strictly in JSON with the fields:
-                {{
-                  "signal": "bullish" | "bearish" | "neutral",
-                  "confidence": 0 to 100,
-                  "reasoning": "string"
-                }}
-                """,
-            ),
-            (
-                "human",
-                """Based on the following analysis data for {ticker}, produce your Peter Lynch–style investment signal.
-
-                Analysis Data:
-                {analysis_data}
-
-                Return only valid JSON with "signal", "confidence", and "reasoning".
-                """,
-            ),
-        ]
-    )
-
-    prompt = template.invoke({"analysis_data": json.dumps(analysis_data, indent=2), "ticker": ticker})
-
-    def create_default_signal():
-        return SocialMediaAnalystSignal(
-            signal="neutral",
-            confidence=0.0,
-            reasoning="Error in analysis; defaulting to neutral"
-        )
-
-    return call_llm(
-        prompt=prompt,
-        model_name=model_name,
-        model_provider=model_provider,
-        pydantic_model=SocialMediaAnalystSignal,
-        agent_name="peter_lynch_agent",
-        default_factory=create_default_signal,
-    )
-
-
 if __name__ == "__main__":
-    # At the end only need the end_date, start_date should be two weeks or one month before the end_date
-    test_state = AgentState(
-        messages=[],
-        data={
-            "tickers": ["bitcoin"],
+
+    llm = ChatOpenAI(model="gpt-4o")
+
+    workflow = StateGraph(AgentState)
+    workflow.add_node("social_media_analyst", social_media_analyst)
+    workflow.set_entry_point("social_media_analyst")
+    research_graph = workflow.compile()
+
+    # Initialize state with messages as a list
+    initial_state = {
+        "messages": [
+            HumanMessage(content="Make trading decisions based on the provided data.")
+            ]       
+        ,
+        "data": {
+            "slugs": ["bitcoin"],
             "start_date": "2024-06-07",
             "end_date": "2024-08-08",
             "time_interval": "4h",
         },
-        metadata={"show_reasoning": False},
-    )
+        "metadata": {
+            "request_id": "test-123",
+            "timestamp": "2025-07-02T12:00:00Z"
+        }
+    }
 
-    # Run the agent
-    result = social_media_analyst_agent(test_state)
-    print(result)
+    final_state = research_graph.invoke(initial_state)
+
+    print(final_state)

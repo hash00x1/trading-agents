@@ -2,25 +2,14 @@ from langgraph.prebuilt import create_react_agent
 from base_workflow.tools.openai_news_crawler import langchain_tools
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
-
 from langchain_core.messages import HumanMessage
-from langgraph.types import Command
-from typing import Literal
 from base_workflow.graph.state import AgentState
-
-
-from typing import Literal, Union
-from chromadb.utils.rendezvous_hash import Members
-from langchain_core.language_models.chat_models import BaseChatModel
-from langgraph.graph import StateGraph, MessagesState, START, END
-from langgraph.types import Command
-from sympy.strategies.rl import subs
-from typing_extensions import TypedDict
+from langgraph.graph import StateGraph
 from langchain_openai import ChatOpenAI
 import re
 import json
 
-def news_analyst_node(state: AgentState):
+def news_analyst(state: AgentState):
     ##### Financial News Sentiment Agent ###################################################################
     ### Generate a comprehensive analysis report of recent crypto news, focusing on sentiment and market impact.
     ### Give a trading signal for the news sentiment, which should suit the whole workflow.
@@ -130,8 +119,6 @@ def news_analyst_node(state: AgentState):
         name="sentiment_agent",
     )
 
-
-
     return {
         "messages": [message],
         "data": data,
@@ -143,7 +130,7 @@ if __name__ == "__main__":
     llm = ChatOpenAI(model="gpt-4o")
 
     workflow = StateGraph(AgentState)
-    workflow.add_node("news_analyst", news_analyst_node)
+    workflow.add_node("news_analyst", news_analyst)
     workflow.set_entry_point("news_analyst")
     research_graph = workflow.compile()
 
