@@ -19,7 +19,6 @@ def merge_dicts(a: dict[str, any], b: dict[str, any]) -> dict[str, any]:
 
 # Define agent state
 class AgentState(TypedDict):
-    # messages: Annotated[dict[str, BaseMessage], merge_dicts]
     messages: Annotated[Sequence[BaseMessage], operator.add]
     data: Annotated[dict[str, any], merge_dicts]
     metadata: Annotated[dict[str, any], merge_dicts]
