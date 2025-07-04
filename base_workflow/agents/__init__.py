@@ -1,4 +1,3 @@
-from .social_media_analyst import social_media_analyst_agent
 # from .fundamentals_analyst import fundamentals_analyst
 from .conservative_risk_manager import conservative_risk_manager
 from .neutral_risk_manager import neutral_risk_manager
@@ -16,7 +15,6 @@ from .debate_agent import (
 )
 
 __all__ = [
-    'social_media_analyst', 
     # 'fundamentals_analyst',
     'conservative_risk_manager', 
     'neutral_risk_manager', 

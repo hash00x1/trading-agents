@@ -201,12 +201,11 @@ def social_media_analyst(state: AgentState):
                 - classification: {fear_and_greed_index_classification}
                 - index: {fear_and_greed_index_value}
 
-
         Your output must consist of three parts:
 
         ---
 
-        ### Part 1: **News Sentiment Report**
+        ### Part 1: **Social Media Sentiment Report**
         - A structured report summarizing the news and trends.
         - Evaluation of news credibility and timeliness.
         - Assessment of the likely market impact.
@@ -248,12 +247,14 @@ def social_media_analyst(state: AgentState):
         )
         # Run the agent
         # message = news_analyst_agent.invoke([input_message])
-        analyst_message = social_media_analyst_agent.invoke({"messages":messages})
-        content = analyst_message["messages"][-1].content
+        # analyst_message = social_media_analyst_agent.invoke({"messages":messages})
+        analyst_message = llm.invoke([HumanMessage(content=social_media_analyst_system_message)])
+        content = str(analyst_message.content)
+        print(content)
         
-        # Extract News Sentiment Report
+        # Extract Social Media Sentiment Report
         part1_match = re.search(
-            r"### Part 1: \*\*News Sentiment Report\*\*\n\n(.*?)\n\n### Part 2:", 
+            r"### Part 1:\s+\*\*Social Media\s+Sentiment\s+Report\*\*\s*\n+(.*?)(?=\n+---\n+\n+### Part 2:)", 
             content, 
             re.DOTALL
             )
@@ -262,7 +263,7 @@ def social_media_analyst(state: AgentState):
 
         # Extract Trading Signal
         part2_match = re.search(
-            r"Part 2: \*\*Trading Signal\*\*.*?Trading Signal: \*\*(Buy|Hold|Sell)\*\*", 
+            r"### Part 2: \*\*Trading Signal\*\*.*?Trading Signal: \*\*(Buy|Hold|Sell)\*\*", 
             content, re.DOTALL
             )
         trading_signal = part2_match.group(1) if part2_match else None

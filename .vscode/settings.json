@@ -6,7 +6,7 @@
         { "name": "", "depth": 20, "includeAllSymbols": true }
     ],
   "[python]": {
-      "editor.hover.enabled": false,
+      "editor.hover.enabled": true,
       "editor.formatOnSave": true,
 
     "editor.codeActionsOnSave": {

@@ -68,9 +68,6 @@ def news_analyst(state: AgentState):
         ---
         """.format(date=end_date, cryptos=slug)
 
-
-
-
         news_analyst_agent = create_react_agent(
             llm,
             tools=langchain_tools,
