@@ -140,7 +140,7 @@ if __name__ == "__main__":
         "data": {
             "slugs": ["bitcoin"],
             "start_date": "2024-06-07",
-            "end_date": "2024-08-08",
+            "end_date": "2024-06-21",
             "time_interval": "4h",
         },
         "metadata": {

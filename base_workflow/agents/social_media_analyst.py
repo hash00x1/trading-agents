@@ -8,6 +8,9 @@ import re
 from pydantic import BaseModel
 from typing_extensions import Literal
 from langgraph.graph import StateGraph
+from datetime import datetime, timedelta
+import numpy as np
+from scipy.stats import linregress
 
 from base_workflow.tools import (
     get_sentiment_weighted_total,
@@ -70,7 +73,11 @@ def social_media_analyst(state: AgentState):
     # Change the start_data to be two weeks before the end_date
     messages = state.get("messages", [])
     data = state.get("data", {})
-    end_date = data.get("end_date")
+    end_date_data = data.get("end_date")
+    end_date = datetime.strptime(str(end_date_data), "%Y-%m-%d")
+    start_date = end_date - timedelta(weeks=2)
+    start_date = start_date.strftime("%Y-%m-%d")
+
     slugs = data.get("slugs", [])
     llm = ChatOpenAI(model='gpt-4o-mini')
     interval = data["time_interval"]
@@ -84,23 +91,31 @@ def social_media_analyst(state: AgentState):
     
         # 主要观察balance_total, 并且观察positive_total 和 negative_total的变化趋势并作为参考。
         # 先把这部分的功能都实现，然后作为数据，和说明一起喂给analyst。
-        # sentiment_balance_total = get_sentiment_balance_total(
-        #     slug = 'social_sentiment_weighted_total' + slug,
-        #     end_date=end_date,
-        #     start_date=start_date,    
-        # )
-        # print(sentiment_balance_total)
-        # sentiment_negative_total = get_sentiment_negative_total(
-        #     slug = 'social_sentiment_negative_total' + slug,
-        #     end_date=end_date,
-        #     start_date=start_date,
-        # )
+        _, sentiment_balance_total = get_sentiment_balance_total(
+            slug = 'social_sentiment_weighted_total' + slug,
+            end_date=str(end_date),
+            start_date=start_date,    
+        )
 
-        # sentiment_positive_total = get_sentiment_positive_total(
-        #     slug = 'social_sentiment_positive_total' + slug,
-        #     end_date=end_date,
-        #     start_date=start_date,
-        # )
+
+        # convert to df
+        # define > 0. In the past 7 days, more than half > 0 can be considered as positive 
+        _, sentiment_negative_total = get_sentiment_negative_total(
+            slug = 'social_sentiment_negative_total' + slug,
+            end_date=end_date,
+            start_date=start_date,
+        )
+
+        _, sentiment_positive_total = get_sentiment_positive_total(
+            slug = 'social_sentiment_positive_total' + slug,
+            end_date=end_date,
+            start_date=start_date,
+        )
+
+        sentiment_negative_growth_total = sentiment_linear_regression(sentiment_negative_total)
+
+        sentiment_positive_growth_total = sentiment_linear_regression(sentiment_positive_total)
+
 
 
         # # 看看这部分是不是有在不断增加
@@ -286,6 +301,47 @@ def social_media_analyst(state: AgentState):
     )
 
     return {"messages": [message], "data": state["data"]}
+
+
+def sentiment_linear_regression(df):
+    """
+    Performs linear regression on sentiment scores over time to identify sentiment trend.
+
+    Returns:
+        dict: {
+            'signal': str,
+                Either 'positive' (upward trend) or 'negative' (downward trend)
+            'metrics': dict,
+                Contains:
+                    - 'slope' (float): The regression slope, indicating average sentiment change per time unit.
+                    - 'p_value' (float): Statistical significance of the slope.
+        }
+    """
+    x = np.arange(len(df))
+    y = df["value"]
+    slope, _, _, p_value, _ = linregress(x, y)  # interception, r_value, std_err
+
+    slope = float(slope)
+    p_value = float(p_value)
+
+    if slope > 0:
+        signal = "positive"
+    elif slope < 0:
+        signal = "negative"
+    else:
+        signal = "neutral"
+
+
+    return {
+        "signal": signal,
+        "metrics":{
+            "slope": slope,  
+            # "intercept": intercept,
+            # "r_squared": r_squared,
+            "p_value": p_value
+        }
+    }
+
 
 if __name__ == "__main__":
 

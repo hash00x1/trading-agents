@@ -11,6 +11,7 @@ import pandas as pd
 from datetime import date, datetime, timedelta
 from typing import Optional
 from io import StringIO
+from typing import Tuple
 
 from test.test_threading_local import target
 
@@ -42,7 +43,7 @@ import pandas as pd
 # Social Volume analysis
 # combine the discussion volume (volume_score) from Telegram, Twitter, and YouTube. A higher discussion volume typically 
 # indicates increased market interest in an asset, which could be a precursor to price fluctuations
-def get_sentiment_weighted_total(slug: str, start_date: str, end_date: str) -> list[SocialSentimentScoreValue]:
+def get_sentiment_weighted_total(slug: str, start_date: str, end_date: str) -> Tuple[list[SocialSentimentScoreValue], pd.DataFrame]:
     """Fetch Telegram sentiment score from cache or API."""
     # Check cache first
     # if cached_data := _cache.get_telegram_sentiment_score():
@@ -56,7 +57,7 @@ def get_sentiment_weighted_total(slug: str, start_date: str, end_date: str) -> l
         "sentiment_weighted_total/bitcoin",  # Replace 'bitcoin' with your asset slug
         from_date=start_date,  # Start date within allowed range
         to_date=end_date,  # End date within allowed range
-        #interval="1d"  # Set the interval to daily data
+        interval="4h"  # Set the interval to daily data
     )
 
     df_renamed = df.reset_index().rename(columns={"datetime": "time"})
@@ -66,7 +67,7 @@ def get_sentiment_weighted_total(slug: str, start_date: str, end_date: str) -> l
     ]
     
     # _cache.set_telegram_sentiment_score([v.model_dump() for v in dominance_values])
-    return sentiment_weighted_total
+    return sentiment_weighted_total, df_renamed
 
 def get_social_volume_total(slug: str, start_date: str, end_date: str) -> list[SocialVolumeValue]:
     """Fetch Telegram sentiment score from cache or API."""
@@ -172,7 +173,7 @@ def get_social_volume_total_change_1d(slug: str, start_date: str, end_date: str)
     # _cache.set_telegram_sentiment_score([v.model_dump() for v in dominance_values])
     return social_volume_total_change_1d
 
-def get_sentiment_negative_total(slug: str, start_date: str, end_date: str) -> list[SocialSentimentScoreValue]:
+def get_sentiment_negative_total(slug: str, start_date: str, end_date: str) -> Tuple[list[SocialSentimentScoreValue], pd.DataFrame]:
     """Shows how many mentions of a term/asset are expressed in a negative manner"""
     # Check cache first
     # if cached_data := _cache.get_telegram_sentiment_score():
@@ -186,7 +187,7 @@ def get_sentiment_negative_total(slug: str, start_date: str, end_date: str) -> l
         "sentiment_negative_total/bitcoin",  # Replace 'bitcoin' with your asset slug
         from_date=start_date,  # Start date within allowed range
         to_date=end_date,  # End date within allowed range
-        #interval="1d"  # Set the interval to daily data
+        interval="4h"  # Set the interval to daily data
     )
 
     df_renamed = df.reset_index().rename(columns={"datetime": "time"})
@@ -196,9 +197,9 @@ def get_sentiment_negative_total(slug: str, start_date: str, end_date: str) -> l
     ]
     
     # _cache.set_telegram_sentiment_score([v.model_dump() for v in dominance_values])
-    return sentiment_negative_total
+    return sentiment_negative_total, df_renamed
 
-def get_sentiment_positive_total(slug: str, start_date: str, end_date: str) -> list[SocialSentimentScoreValue]:
+def get_sentiment_positive_total(slug: str, start_date: str, end_date: str) -> Tuple[list[SocialSentimentScoreValue], pd.DataFrame]:
     """Shows how many mentions of a term/asset are expressed in a positive manner"""
     # Check cache first
     # if cached_data := _cache.get_telegram_sentiment_score():
@@ -212,7 +213,7 @@ def get_sentiment_positive_total(slug: str, start_date: str, end_date: str) -> l
         "sentiment_positive_total/bitcoin",  # Replace 'bitcoin' with your asset slug
         from_date=start_date,  # Start date within allowed range
         to_date=end_date,  # End date within allowed range
-        #interval="1d"  # Set the interval to daily data
+        interval="4h"  # Set the interval to daily data
     )
 
     df_renamed = df.reset_index().rename(columns={"datetime": "time"})
@@ -222,9 +223,9 @@ def get_sentiment_positive_total(slug: str, start_date: str, end_date: str) -> l
     ]
     
     # _cache.set_telegram_sentiment_score([v.model_dump() for v in dominance_values])
-    return sentiment_positive_total
+    return sentiment_positive_total, df_renamed
 
-def get_sentiment_balance_total(slug: str, start_date: str, end_date: str) -> list[SocialSentimentScoreValue]:
+def get_sentiment_balance_total(slug: str, start_date: str, end_date: str) -> Tuple[list[SocialSentimentScoreValue], pd.DataFrame]:
     """Sentiment Balance - The difference between Positive Sentiment and Negative Sentiment"""
     # Check cache first
     # if cached_data := _cache.get_telegram_sentiment_score():
@@ -235,10 +236,10 @@ def get_sentiment_balance_total(slug: str, start_date: str, end_date: str) -> li
         san.ApiConfig.api_key = api_key
 
     df = san.get(
-        "sentiment_balance_total/bitcoin",  # Replace 'bitcoin' with your asset slug
+        "sentiment_balance_total/bitcoin",  # Replace 'bitcoin' 
         from_date=start_date,  # Start date within allowed range
         to_date=end_date,  # End date within allowed range
-        #interval="1d"  # Set the interval to daily data
+        interval="4h"  # Set the interval to daily data
     )
 
     df_renamed = df.reset_index().rename(columns={"datetime": "time"})
@@ -248,7 +249,7 @@ def get_sentiment_balance_total(slug: str, start_date: str, end_date: str) -> li
     ]
     
     # _cache.set_telegram_sentiment_score([v.model_dump() for v in dominance_values])
-    return sentiment_balance_total
+    return sentiment_balance_total, df_renamed
 
 # check how to get data of responded date
 def get_fear_and_greed_index(target_date: Optional[str] = None) -> FearGreedIndex:
@@ -290,11 +291,27 @@ def get_fear_and_greed_index(target_date: Optional[str] = None) -> FearGreedInde
     except requests.RequestException as e:
         print(f"Error fetching Fear and Greed Index: {e}")
         return FearGreedIndex(value='0', classification="neutral", updated_at="Unknown") # set to neutral if error occurs
-    
+
+
+
 if __name__ == "__main__":
     # Example usage
-    fgi_1 = get_fear_and_greed_index("2025-07-01")
-    print(f"Fear and Greed Index: {fgi_1.value}, Classification: {fgi_1.classification}, Updated at: {fgi_1.updated_at}")
-    fgi_2 = get_fear_and_greed_index()
-    print(f"Fear and Greed Index: {fgi_2.value}, Classification: {fgi_2.classification}, Updated at: {fgi_2.updated_at}")
+    # fgi_1 = get_fear_and_greed_index("2025-07-01")
+    # print(f"Fear and Greed Index: {fgi_1.value}, Classification: {fgi_1.classification}, Updated at: {fgi_1.updated_at}")
+    # fgi_2 = get_fear_and_greed_index()
+    # print(f"Fear and Greed Index: {fgi_2.value}, Classification: {fgi_2.classification}, Updated at: {fgi_2.updated_at}")
+    slug = "bitcoin"       
+    start_date="2024-06-07"
+    end_date="2024-08-08"
+    # _, sentiment_balance_total = get_sentiment_balance_total(slug, start_date, end_date)
+    # balance_momentum_signals = sentiment_linear_regression(sentiment_balance_total)
+    # print(balance_momentum_signals)
+    # _, sentiment_negative_total = get_sentiment_negative_total(slug, start_date, end_date)
+    # sentiment_negative_total = sentiment_linear_regression(sentiment_negative_total)
+    # print(sentiment_negative_total)
+    # _, sentiment_positive_total = get_sentiment_positive_total(slug, start_date, end_date)
+    # sentiment_positive_total = sentiment_linear_regression(sentiment_positive_total)
+    # print(sentiment_positive_total)
 
+
+    
