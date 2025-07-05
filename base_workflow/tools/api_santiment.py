@@ -293,7 +293,6 @@ def get_fear_and_greed_index(target_date: Optional[str] = None) -> FearGreedInde
         return FearGreedIndex(value='0', classification="neutral", updated_at="Unknown") # set to neutral if error occurs
 
 
-
 if __name__ == "__main__":
     # Example usage
     # fgi_1 = get_fear_and_greed_index("2025-07-01")
@@ -301,17 +300,19 @@ if __name__ == "__main__":
     # fgi_2 = get_fear_and_greed_index()
     # print(f"Fear and Greed Index: {fgi_2.value}, Classification: {fgi_2.classification}, Updated at: {fgi_2.updated_at}")
     slug = "bitcoin"       
-    start_date="2024-06-07"
-    end_date="2024-08-08"
-    # _, sentiment_balance_total = get_sentiment_balance_total(slug, start_date, end_date)
-    # balance_momentum_signals = sentiment_linear_regression(sentiment_balance_total)
-    # print(balance_momentum_signals)
+    start_date="2024-07-05"
+    end_date="2024-07-20"
     # _, sentiment_negative_total = get_sentiment_negative_total(slug, start_date, end_date)
     # sentiment_negative_total = sentiment_linear_regression(sentiment_negative_total)
     # print(sentiment_negative_total)
     # _, sentiment_positive_total = get_sentiment_positive_total(slug, start_date, end_date)
     # sentiment_positive_total = sentiment_linear_regression(sentiment_positive_total)
     # print(sentiment_positive_total)
+    _, sentiment_balance_total = get_sentiment_balance_total(slug, start_date, end_date)
+
+   
+    
+
 
 
     

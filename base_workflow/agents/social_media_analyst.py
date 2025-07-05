@@ -10,6 +10,8 @@ from typing_extensions import Literal
 from langgraph.graph import StateGraph
 from datetime import datetime, timedelta
 import numpy as np
+import pandas as pd
+from pydantic import datetime_parse
 from scipy.stats import linregress
 
 from base_workflow.tools import (
@@ -96,19 +98,19 @@ def social_media_analyst(state: AgentState):
             end_date=str(end_date),
             start_date=start_date,    
         )
+        sentiment_balance_signal = analyse_sentiment_balance(sentiment_balance_total)
 
 
-        # convert to df
         # define > 0. In the past 7 days, more than half > 0 can be considered as positive 
         _, sentiment_negative_total = get_sentiment_negative_total(
             slug = 'social_sentiment_negative_total' + slug,
-            end_date=end_date,
+            end_date=str(end_date),
             start_date=start_date,
         )
 
         _, sentiment_positive_total = get_sentiment_positive_total(
             slug = 'social_sentiment_positive_total' + slug,
-            end_date=end_date,
+            end_date=str(end_date),
             start_date=start_date,
         )
 
@@ -302,6 +304,58 @@ def social_media_analyst(state: AgentState):
 
     return {"messages": [message], "data": state["data"]}
 
+def analyse_sentiment_balance(df: pd.DataFrame):
+    """
+    Analyze sentiment balance data using EMA and MACD to assess overall sentiment trend and momentum.
+
+    The function applies:
+    - A short-term EMA-based check to determine if the majority of sentiment values over the last 2 days are positive or negative.
+    - A MACD analysis to detect bullish or bearish momentum shifts based on recent sentiment data.
+
+    Returns:
+        dict: {
+            'sentiment': str,
+                Either 'positive' (majority of recent sentiment bars are positive)
+                or 'negative' (majority are negative)
+                or 'neutral' (no clear majority)
+            'macd_signal': str,
+                Either 'bullish' (MACD line crossed above signal line, momentum strengthening),
+                'bearish' (MACD line crossed below signal line, momentum weakening),
+                or 'neutral' (no significant crossover)
+        }
+    """
+
+    bars_2d = 3*6
+    df['ema_3'] = df['value'].ewm(span=bars_2d).mean()   # 2 days EMA to check if possitive
+    recent = df['ema_3'].tail(bars_2d)
+    # 统计正向情绪 bar 的数量
+    positive_count = (recent['value'] > 0).sum()
+    if positive_count > bars_2d / 2: 
+        sentiment = "positive"
+    elif positive_count < bars_2d / 2:
+        sentiment = "negative"
+    else:
+        sentiment = "neutral"
+
+    ema_12 = df['value'].ewm(span=12, adjust=False).mean()
+    ema_26 = df['value'].ewm(span=26, adjust=False).mean()
+    macd = ema_12 - ema_26
+    signal = macd.ewm(span=9, adjust=False).mean()
+    hist = macd - signal
+
+    macd_df = pd.DataFrame({'macd': macd, 'signal': signal, 'hist': hist})
+    last = macd_df.iloc[-2:]
+    macd_prev, sig_prev = last['macd'].iloc[0], last['signal'].iloc[0]
+    macd_now, sig_now = last['macd'].iloc[1], last['signal'].iloc[1]
+
+    if macd_prev < sig_prev and macd_now > sig_now:
+        macd_signal = 'bullish'
+    elif macd_prev > sig_prev and macd_now < sig_now:
+        macd_signal = 'bearish'
+    else:
+        macd_signal = 'neutral'
+
+    return {"sentiment" : sentiment, "macd_signal": macd_signal}
 
 def sentiment_linear_regression(df):
     """
@@ -330,7 +384,6 @@ def sentiment_linear_regression(df):
         signal = "negative"
     else:
         signal = "neutral"
-
 
     return {
         "signal": signal,
