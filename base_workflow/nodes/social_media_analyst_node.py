@@ -4,7 +4,7 @@ from langchain_core.messages import HumanMessage
 from langgraph.types import Command
 # from langgraph.graph import MessagesState
 from typing import Literal
-from base_workflow.state import AgentState
+from base_workflow.graph.state import AgentState
 
 
 def social_media_analyst_node(state: AgentState) -> Command[Literal["news_analyst"]]:

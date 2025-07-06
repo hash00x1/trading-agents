@@ -9,7 +9,7 @@ from langchain_core.messages import HumanMessage
 from langgraph.types import Command
 # from langgraph.graph import MessagesState
 from typing import Literal
-from base_workflow.state import AgentState
+from base_workflow.graph.state import AgentState
 
 llm = ChatOpenAI(model="gpt-4o")
 bearish_researcher_tools = ["arxiv", "ddg-search", "wikipedia"]

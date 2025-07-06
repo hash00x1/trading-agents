@@ -29,7 +29,12 @@ $ poetry self add poetry-dotenv-plugin
 ```bash
 $ poetry run main
 ```
+## Project overview
+### Project structure
+### Agent roles 
+### Data schema
 
+## Acknowledgement
 
 ## Citation
 Please cite this repo as follows:

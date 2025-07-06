@@ -2,13 +2,13 @@ from base_workflow.agents.debate_agent import DialogueAgentWithTools, DialogueSi
 from typing import List
 from langchain_openai import ChatOpenAI
 from base_workflow.agents import aggressive_risk_manager, conservative_risk_manager, neutral_risk_manager
-from base_workflow.state import AgentState
+from base_workflow.graph.state import AgentState
 
 
 llm = ChatOpenAI(model='gpt-4o-mini', temperature=0.7)
 
 
-class PortfolioManager(DialogueSimulatorAgent):
+class Riskmanager(DialogueSimulatorAgent):
     """
     Evaluating recommendations and insights from analysts and researchers.
     Deciding on the timing and size of trades to maximize trading returns
@@ -49,7 +49,7 @@ class PortfolioManager(DialogueSimulatorAgent):
 
 
 # Initialize the Trader agent
-portfolio_manager = PortfolioManager(portfolio_agents = [aggressive_risk_manager, conservative_risk_manager, neutral_risk_manager], rounds=6)       
+# portfolio_manager = PortfolioManager(portfolio_agents = [aggressive_risk_manager, conservative_risk_manager, neutral_risk_manager], rounds=6)       
 
 # Example usage
 # if __name__ == "__main__":

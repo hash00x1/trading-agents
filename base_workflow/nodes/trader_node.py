@@ -4,9 +4,10 @@ from langgraph.types import Command
 from langgraph.graph import MessagesState
 from typing import Literal
 from base_workflow.agents import trader
-from base_workflow.state import AgentState
+from base_workflow.graph.state import AgentState
+from base_workflow.nodes import technical_analyst_node
 # test use
-# from langgraph.graph import StateGraph, MessagesState, START, END
+from langgraph.graph import StateGraph, MessagesState, START, END
 
 # Using the trader agent to analyze the market.
 def trader_node(state: AgentState) -> Command[None]:
@@ -35,11 +36,11 @@ if __name__ == "__main__":
     # and then produce the final report.
     workflow = StateGraph(AgentState)
 
-    workflow.add_node("market_analyst", market_analyst_node)
+    workflow.add_node("technical_analyst", technical_analyst_node)
     workflow.add_node("trader", trader_node)
     # workflow.add_node("END", end_node)
-    workflow.set_entry_point("market_analyst")
-    workflow.add_edge("market_analyst", "trader")
+    workflow.set_entry_point("technical_analyst")
+    workflow.add_edge("technical_analyst", "trader")
     research_graph = workflow.compile()
     # thinking about how to use the graph here.
     for s in research_graph.stream(

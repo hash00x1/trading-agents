@@ -4,7 +4,7 @@ from base_workflow.tools import (
     tavily_search
 )
 
-market_analyst_system_message = """
+technical_analyst_system_message = """
 You are a Market Analyst Agent in a multi-agent financial analysis system.
 
 Your role is to evaluate historical price movements, chart patterns, and trading volume using technical indicators. Your objective is to forecast potential future price action and assist in identifying optimal entry and exit points for trades.
@@ -47,9 +47,9 @@ Your role is to evaluate historical price movements, chart patterns, and trading
 Think like a market technician with a disciplined, pattern-based trading mindset. Prioritize signal clarity and interpretability.
 """
 llm = ChatOpenAI(model='gpt-4o-mini')
-market_analyst_tools = [tavily_search]
-market_analyst = create_react_agent(
+technical_analyst_tools = [tavily_search]
+technical_analyst = create_react_agent(
 	llm,
-	tools=market_analyst_tools,
-	state_modifier=market_analyst_system_message,
+	tools=technical_analyst_tools,
+	state_modifier=technical_analyst_system_message,
 )

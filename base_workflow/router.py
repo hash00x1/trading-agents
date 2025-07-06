@@ -1,5 +1,5 @@
 from langchain.schema import AIMessage
-from base_workflow.state import AgentState
+from base_workflow.graph.state import AgentState
 
 
 def router(state: AgentState):

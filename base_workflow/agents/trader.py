@@ -3,13 +3,13 @@ from base_workflow.agents.debate_agent import DialogueAgentWithTools, DialogueSi
 from base_workflow.agents import bearish_researcher, bullish_researcher
 from typing import List
 from langchain_openai import ChatOpenAI
-from base_workflow.state import AgentState
+from base_workflow.graph.state import AgentState
 
 
 llm = ChatOpenAI(model='gpt-4o-mini', temperature=0.7)
 
 
-class Trader(DialogueSimulatorAgent):
+class Researchmanager(DialogueSimulatorAgent):
     """
     Evaluating recommendations and insights from analysts and researchers.
     Deciding on the timing and size of trades to maximize trading returns
@@ -59,7 +59,7 @@ class Trader(DialogueSimulatorAgent):
 
 
 # Initialize the Trader agent
-trader = Trader(trader_agents=[bullish_researcher, bearish_researcher], rounds=6)       
+# trader = Trader(trader_agents=[bullish_researcher, bearish_researcher], rounds=6)       
 
 # Test the Trader agent
 # if __name__ == "__main__":
