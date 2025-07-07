@@ -7,7 +7,7 @@ from langchain.schema import (
     SystemMessage,
 )
 from langchain_openai import ChatOpenAI
-
+from langchain.schema import HumanMessage
 from langchain.agents import Agent, AgentType, initialize_agent, load_tools
 from base_workflow.graph.state import AgentState
 from operator import add
@@ -24,19 +24,20 @@ class DialogueAgent:
         name: str,
         system_message: SystemMessage,
         model: ChatOpenAI,
+        state: AgentState
     ) -> None:
         self.name = name
         self.system_message = system_message
         self.model = model
         self.prefix = f"{self.name}: "
-        self.reset()
+        self.state = state
 
-    def reset(self):
-        self.state: AgentState = {
-            "messages": [],
-            "data": {},
-            "metadata": {},
-        }
+    # def reset(self):
+    #     self.state: AgentState = {
+    #         "messages": [],
+    #         "data": {},
+    #         "metadata": {},
+    #     }
 
     def send(self) -> str:
         """
@@ -47,7 +48,8 @@ class DialogueAgent:
             [
                 self.system_message,
                 #HumanMessage(content="\n".join(self.message_history + [self.prefix])),
-                HumanMessage(content="\n".join(add(self.state["messages"], [self.prefix]))),
+                # HumanMessage(content="\n".join(add(self.state["messages"], [self.prefix]))),
+                HumanMessage(content="\n".join([str(m.content) for m in self.state["messages"]] + [self.prefix])),
             ]
         )
         #check if this part could be correct
@@ -58,19 +60,22 @@ class DialogueAgent:
         Concatenates {message} spoken by {name} into message history
         """
         # self.message_history.append(f"{name}: {message}")
-        self.state["messages"].append(f"{name}: {message}")
+        # self.state["messages"].append(HumanMessage(content=f"{name}: {message}"))
+        self.state["messages"] = list(self.state["messages"]) + [HumanMessage(content=f"{name}: {message}")]
 
-        
+
+# for future devolop
 class DialogueAgentWithTools(DialogueAgent):
     def __init__(
         self,
         name: str,
         system_message: SystemMessage,
         model: ChatOpenAI,
+        state: AgentState,
         tool_names: List[str],
         **tool_kwargs,
     ) -> None:
-        super().__init__(name, system_message, model)
+        super().__init__(name, system_message, model, state)
         self.tools = load_tools(tool_names, **tool_kwargs)
 
     def send(self) -> str:
@@ -86,18 +91,18 @@ class DialogueAgentWithTools(DialogueAgent):
             memory=ConversationBufferMemory(
                 memory_key="chat_history", return_messages=True
             ),
+            handle_parsing_errors=True
         )
         message = AIMessage(
             content=agent_chain.run(
-                # input="\n".join([self.system_message.content] + self.message_history + [self.prefix])
-                input="\n".join([self.system_message.content] + add(self.state["messages"], [self.prefix]))
+                input = "\n".join([str(self.system_message.content)] + [str(m.content) for m in self.state["messages"]]+ [self.prefix])
             )
         )
 
         return str(message.content)
 
 # Function to alternate between Bullish and Bearish Researchers
-def select_next_speaker(step: int, agents: List[DialogueAgentWithTools]) -> int:
+def select_next_speaker(step: int, agents: List[DialogueAgent]) -> int:
     return (step) % len(agents)  # Alternating speakers
 
 
@@ -107,7 +112,7 @@ class DialogueSimulatorAgent:
 # support different 
     def __init__(
         self,
-        agents: list[DialogueAgentWithTools],
+        agents: list[DialogueAgent],
         # selection_function: Callable[[int, List[DialogueAgent]], int],
         rounds: int = 6,
     ) -> None:
@@ -172,50 +177,58 @@ class DialogueSimulatorAgent:
 #######################################
 # testing usage
 # for testing purposes please uncomment the following lines and run the code
-#######################################
-# from langchain_openai import ChatOpenAI
-# from langchain_core.messages import SystemMessage
+######################################
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import SystemMessage
+test_state = AgentState(
+    messages=[],
+    data={
+        "tickers": ["ohlcv/bitcoin" ],
+        "start_date": "2024-06-07",
+        "end_date": "2024-08-08",
+        "time_interval": "4h",
+    },
+    metadata={"show_reasoning": False},
+)
+#test usage
+llm = ChatOpenAI(model="gpt-4o")
+bearish_researcher_tools = ["arxiv", "ddg-search", "wikipedia"]
+bearish_researcher_system_message = """
+You are a Bearish Researcher. 
+Your role is to focus on potential downsides, risks, and unfavorable market signals. 
+You should argue that investments in certain assets could have negative outcomes due to market volatility, economic downturns, or poor growth potential. Provide cautionary insights to convince others not to invest or to consider risk management strategies.
+"""
+bearish_researcher = DialogueAgentWithTools(
+    name="bearish Researcher",
+    system_message=SystemMessage(content=bearish_researcher_system_message),
+    model=llm,
+    tool_names=bearish_researcher_tools,
+    state = test_state
+)    
 
-# #test usage
-# llm = ChatOpenAI(model="gpt-4o")
-# bearish_researcher_tools = ["arxiv", "ddg-search", "wikipedia"]
-# bearish_researcher_system_message = """
-# You are a Bearish Researcher. 
-# Your role is to focus on potential downsides, risks, and unfavorable market signals. 
-# You should argue that investments in certain assets could have negative outcomes due to market volatility, economic downturns, or poor growth potential. Provide cautionary insights to convince others not to invest or to consider risk management strategies.
-# """
-# bearish_researcher = DialogueAgentWithTools(
-#     name="bearish Researcher",
-#     system_message=SystemMessage(content=bearish_researcher_system_message),
-#     model=llm,
-#     tool_names=bearish_researcher_tools
-# )    
+bullish_researcher_tools = ["arxiv", "ddg-search", "wikipedia"]
+bullish_researcher_system_message = """
+You are a Bullish Researcher. Your role is to highlight positive indicators, growth potential, and favorable market conditions. 
+You advocate for investment opportunities by emphasizing high growth, strong fundamentals, and positive market trends. 
+You should encourage others to initiate or continue positions in certain assets.
+"""
+bullish_researcher = DialogueAgentWithTools(
+    name="Bullish Researcher",
+    system_message=SystemMessage(content=bullish_researcher_system_message),
+    model=llm,
+    tool_names=bullish_researcher_tools,
+    state = test_state
+)
 
-# bullish_researcher_tools = ["arxiv", "ddg-search", "wikipedia"]
-# bullish_researcher_system_message = """
-# You are a Bullish Researcher. Your role is to highlight positive indicators, growth potential, and favorable market conditions. 
-# You advocate for investment opportunities by emphasizing high growth, strong fundamentals, and positive market trends. 
-# You should encourage others to initiate or continue positions in certain assets.
-# """
-# bullish_researcher = DialogueAgentWithTools(
-#     name="Bullish Researcher",
-#     system_message=SystemMessage(content=bullish_researcher_system_message),
-#     model=llm,
-#     tool_names=bullish_researcher_tools
-# )
+if __name__ == '__main__':
 
-# if __name__ == '__main__':
+    test_simulator = DialogueSimulatorAgent(
+        agents=[bullish_researcher, bearish_researcher],
+    )
 
-#     test_simulator = DialogueSimulatorAgent(
-#         agents=[bullish_researcher, bearish_researcher],
-#     )
+    # run the full dialogue:
+    transcript = test_simulator.run("")
 
-#     # run the full dialogue:
-#     transcript = test_simulator.run(
-#         initial_message="Let's discuss the potential of technology stocks in the current market."
-#     )
-
-
-#     # print it out:
-#     for speaker, text in transcript:
-#         print(f"({speaker}): {text}\n")
+    # print it out:
+    for speaker, text in transcript:
+        print(f"({speaker}): {text}\n")

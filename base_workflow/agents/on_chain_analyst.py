@@ -27,7 +27,7 @@ from base_workflow.tools import get_daily_active_addresses
 # Provides human-readable reasoning and a confidence score
 # based on https://medium.com/coinmonks/a-beginners-guide-to-on-chain-analysis-1f2689efd9aa
 
-def on_chain_data_analyst(state: AgentState):
+def on_chain_analyst(state: AgentState):
     """Analyzes on-chain data using Santiment and generates trading signals."""
     messages = state.get("messages", [])
     data = state.get("data", {})

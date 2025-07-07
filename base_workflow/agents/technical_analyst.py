@@ -43,7 +43,7 @@ from base_workflow.utils.progress import progress
 # This modified ATR sends a buy signal when it's above the EMA and a sell signal when it's below the EMA.
 
 
-def technical_analyst_agent(state: AgentState):
+def technical_analyst(state: AgentState):
 
     """
     Sophisticated technical analysis system that combines multiple trading strategies for multiple tickers:
@@ -82,16 +82,16 @@ def technical_analyst_agent(state: AgentState):
         prices_df = prices_to_df(prices)
         # print (prices_df)
         
-        progress.update_status("technical_analyst_agent", ticker, "Calculating trend signals")
+        progress.update_status("technical_analyst", ticker, "Calculating trend signals")
         trend_signals = calculate_trend_signals(prices_df)
 
-        progress.update_status("technical_analyst_agent", ticker, "Calculating mean reversion")
+        progress.update_status("technical_analyst", ticker, "Calculating mean reversion")
         mean_reversion_signals = calculate_mean_reversion_signals(prices_df)
 
-        progress.update_status("technical_analyst_agent", ticker, "Calculating momentum")
+        progress.update_status("technical_analyst", ticker, "Calculating momentum")
         momentum_signals = calculate_momentum_signals(prices_df)
 
-        progress.update_status("technical_analyst_agent", ticker, "Analyzing volatility")
+        progress.update_status("technical_analyst", ticker, "Analyzing volatility")
         volatility_signals = calculate_volatility_signals(prices_df)
 
         # Combine all signals using a weighted ensemble approach
@@ -101,7 +101,7 @@ def technical_analyst_agent(state: AgentState):
             "momentum": 0.30,
             "volatility": 0.20        }
 
-        progress.update_status("technical_analyst_agent", ticker, "Combining signals")
+        progress.update_status("technical_analyst", ticker, "Combining signals")
         combined_signal = weighted_signal_combination(
             {
                 "trend": trend_signals,
@@ -139,12 +139,12 @@ def technical_analyst_agent(state: AgentState):
                 }
             },
         }
-        progress.update_status("technical_analyst_agent", ticker, "Done")
+        progress.update_status("technical_analyst", ticker, "Done")
 
     # Create the technical analyst message
     message = HumanMessage(
         content=json.dumps(technical_analysis),
-        name="technical_analyst_agent",
+        name="technical_analyst",
     )
 
     # if state["metadata"]["show_reasoning"]:
@@ -585,5 +585,5 @@ if __name__ == "__main__":
     )
 
     # Run the agent
-    result = technical_analyst_agent(test_state)
+    result = technical_analyst(test_state)
     print(result)

@@ -40,53 +40,7 @@ def get_daily_active_addresses(slug: str, start_date: str, end_date: str) -> Tup
     # _cache.set_telegram_sentiment_score([v.model_dump() for v in dominance_values])
     return daily_active_address, df_renamed
 
-# # 7d moving average. 
-# def analyse_daa_trend(df: pd.DataFrame):
-#     """
-#     Analyze DAA (Daily Active Addresses) data using EMA and MACD to assess short-term activity trend and momentum.
-
-#     Args:
-#         df (pd.DataFrame): DataFrame with 'value' column representing DAA values.
-
-#     Returns:
-#         dict: {
-#             'daa_trend': str,
-#                 'increasing', 'decreasing', or 'stable' (majority of recent EMA bars)
-#             'macd_signal': str,
-#                 'bullish', 'bearish', or 'neutral' (MACD crossover)
-#         }
-#     """
-#     bars_2d = 3 * 6  # roughly 2 days assuming 8h bars (or adjust as needed)
-#     df['ema_3'] = df['value'].ewm(span=bars_2d).mean()
-#     recent = df['ema_3'].tail(bars_2d)
-
-#     increasing_count = (recent.diff() > 0).sum()
-#     decreasing_count = (recent.diff() < 0).sum()
-
-#     if increasing_count > bars_2d / 2:
-#         trend = "increasing"
-#     elif decreasing_count > bars_2d / 2:
-#         trend = "decreasing"
-#     else:
-#         trend = "stable"
-
-#     ema_12 = df['value'].ewm(span=12, adjust=False).mean()
-#     ema_26 = df['value'].ewm(span=26, adjust=False).mean()
-#     macd = ema_12 - ema_26
-#     signal = macd.ewm(span=9, adjust=False).mean()
-
-#     last = pd.DataFrame({'macd': macd, 'signal': signal}).iloc[-2:]
-#     macd_prev, sig_prev = last['macd'].iloc[0], last['signal'].iloc[0]
-#     macd_now, sig_now = last['macd'].iloc[1], last['signal'].iloc[1]
-
-#     if macd_prev < sig_prev and macd_now > sig_now:
-#         macd_signal = 'bullish'
-#     elif macd_prev > sig_prev and macd_now < sig_now:
-#         macd_signal = 'bearish'
-#     else:
-#         macd_signal = 'neutral'
-
-#     return {"daa_trend": trend, "macd_signal": macd_signal}
+### functions
 import pandas as pd
 import numpy as np
 from scipy.stats import linregress

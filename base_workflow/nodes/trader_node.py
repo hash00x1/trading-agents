@@ -3,7 +3,7 @@ from langchain_core.messages import HumanMessage
 from langgraph.types import Command
 from langgraph.graph import MessagesState
 from typing import Literal
-from base_workflow.agents import trader
+from base_workflow.agents import research_manager
 from base_workflow.graph.state import AgentState
 from base_workflow.nodes import technical_analyst_node
 # test use
@@ -14,7 +14,7 @@ def trader_node(state: AgentState) -> Command[None]:
     # State is used to pass messages and data between nodes, it is a global variable.
     print("state:", state)
     #trader's analysis
-    result = trader.analysis(state["messages"])
+    result = research_manager.analysis(state["messages"])
     return Command(
         update={
             'messages': [

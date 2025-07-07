@@ -9,9 +9,28 @@ from sympy.strategies.rl import subs
 from typing_extensions import TypedDict
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
-from base_workflow.nodes import (market_analyst_node, social_media_analyst_node, news_analyst_node, fundamentals_analyst_node)
+from base_workflow.nodes import (social_media_analyst_node, news_analyst_node, fundamentals_analyst_node)
 from base_workflow.graph.state import AgentState
-from base_workflow.agents import bearish_researcher, bullish_researcher, trader, aggressive_risk_manager, neutral_risk_manager, conservative_risk_manager, portfolio_manager
+from base_workflow.agents import bearish_researcher, bullish_researcher, research_manager, risk_manager, aggressive_risk_manager, neutral_risk_manager, conservative_risk_manager
+import sys
+import argparse
+from dotenv import load_dotenv
+from langchain_core.messages import HumanMessage
+from langgraph.graph import END, StateGraph
+from colorama import Fore, Back, Style, init
+import questionary
+from agents.portfolio_manager import portfolio_management_agent
+from agents.technicals import technical_analyst_agent
+from agents.risk_manager import risk_management_agent
+from agents.sentiment import sentiment_agent
+from graph.state import AgentState
+from utils.progress import progress
+import argparse
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+from tabulate import tabulate
+import json
+
 # from base_workflow.utils import DialogueAgentWithTools
 # from base_workflow.utils.debate_agent import DialogueSimulator
 
@@ -32,7 +51,7 @@ workflow.add_node("news_analyst", news_analyst_node)
 workflow.add_node("fundamentals_analyst", fundamentals_analyst_node)
 workflow.add_node("bearish_researcher", bearish_researcher)
 workflow.add_node("bullish_researcher", bullish_researcher)
-workflow.add_node("trader", trader)
+workflow.add_node("trader", research_manager)
 
 # Define the workflow edges of research team
 workflow.set_entry_point("market_analyst")
