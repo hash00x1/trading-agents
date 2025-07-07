@@ -1,9 +1,22 @@
 from langchain_core.messages import HumanMessage
-from graph.state import AgentState, show_agent_reasoning
-from utils.progress import progress
+from base_workflow.graph.state import AgentState
+from base_workflow.utils.progress import progress
+from langchain_openai import ChatOpenAI
+from langgraph.prebuilt import create_react_agent
 import json
+import re
+from pydantic import BaseModel
+from typing_extensions import Literal
+from langgraph.graph import StateGraph
+from datetime import datetime, timedelta
+import numpy as np
+import pandas as pd
+from pydantic import datetime_parse
+from scipy.stats import linregress
+from langchain_core.messages import HumanMessage
 
-from base_workflow.tools.api_price import get_financial_metrics
+
+from base_workflow.tools import get_daily_active_addresses
 
 #### On-Chain Data Analyst Agent #####
 # Book: do Fundamentals Drive Cryptocurrency Prices?
@@ -12,92 +25,88 @@ from base_workflow.tools.api_price import get_financial_metrics
 # Network Size: Measured by the number of active users or addresses, indicating adoption and utility.
 # Generates a trading signal (bullish, bearish, neutral) for each cryptocurrency
 # Provides human-readable reasoning and a confidence score
+# based on https://medium.com/coinmonks/a-beginners-guide-to-on-chain-analysis-1f2689efd9aa
 
-def on_chain_data_analyst_agent(state: AgentState):
+def on_chain_data_analyst(state: AgentState):
     """Analyzes on-chain data using Santiment and generates trading signals."""
-    data = state["data"]
-    end_date = data["end_date"]
-    tickers = data["tickers"]
+    messages = state.get("messages", [])
+    data = state.get("data", {})
+    end_date_str = data.get("end_date")
+    end_date = datetime.strptime(str(end_date_str), "%Y-%m-%d")
+    start_date = end_date - timedelta(weeks=2)
+    start_date = start_date.strftime("%Y-%m-%d")
+
+    slugs = data.get("slugs", [])
+    llm = ChatOpenAI(model='gpt-4o-mini')
+    interval = data["time_interval"]
 
     onchain_analysis = {}
 
-    for ticker in tickers:
-        progress.update_status("onchain_agent", ticker, "Fetching on-chain metrics")
+    for slug in slugs:
+        progress.update_status("onchain_agent", slug, "Fetching on-chain metrics")
 
-        signals = []
-        reasoning = {}
+        # 1.  Network Activity : 'daily_active_address', transation volume
 
-        # 活跃地址分析（活跃用户越多越 bullish）daily_active_addresses  liquity_active_addresses
-        active_addresses = metrics.get("active_addresses")
-        if active_addresses and active_addresses > metrics.get("active_avg_30d", 0) * 1.2:
-            signals.append("bullish")
-        elif active_addresses and active_addresses < metrics.get("active_avg_30d", 0) * 0.8:
-            signals.append("bearish")
-        else:
-            signals.append("neutral")
-        reasoning["active_addresses_signal"] = {
-            "signal": signals[-1],
-            "details": f"Active: {active_addresses}, 30D Avg: {metrics.get('active_avg_30d')}",
-        }
+        _, daily_active_addresses = get_daily_active_addresses(
+            slug,
+            end_date=str(end_date),
+            start_date=start_date, 
+        )
+        print(daily_active_addresses)
 
-        # # 2. 交易量分析
-        # tx_volume = metrics.get("transaction_volume")
-        # if tx_volume and tx_volume > metrics.get("volume_avg_30d", 0) * 1.5:
+
+        
+        # 'transaction_volume_change_1d', 'transaction_volume_change_30d', 'transaction_volume_change_7d', 'transaction_volume_profit_loss_ratio', 'transaction_volume'
+
+
+        # 3. Market Sentiment: Whale analysis, exchange inflow, exchange outflow. 
+
+        
+        # whale_balance_change = metrics.get("whale_balance_change")
+        # if whale_balance_change and whale_balance_change > 0:
         #     signals.append("bullish")
-        # elif tx_volume and tx_volume < metrics.get("volume_avg_30d", 0) * 0.7:
+        # elif whale_balance_change and whale_balance_change < 0:
         #     signals.append("bearish")
         # else:
         #     signals.append("neutral")
-        # reasoning["tx_volume_signal"] = {
+        # reasoning["whale_signal"] = {
         #     "signal": signals[-1],
-        #     "details": f"Tx Volume: {tx_volume}, 30D Avg: {metrics.get('volume_avg_30d')}",
-        # }
+        #     "details": f"Whale Balance Change: {whale_balance_change}",
+        # 
 
-        # 3. 鲸鱼地址行为（增加持仓通常 bullish）
-        whale_balance_change = metrics.get("whale_balance_change")
-        if whale_balance_change and whale_balance_change > 0:
-            signals.append("bullish")
-        elif whale_balance_change and whale_balance_change < 0:
-            signals.append("bearish")
-        else:
-            signals.append("neutral")
-        reasoning["whale_signal"] = {
-            "signal": signals[-1],
-            "details": f"Whale Balance Change: {whale_balance_change}",
+    # return {
+    #     "messages": [message],
+    #     "data": data,
+    # }
+
+
+if __name__ == "__main__":
+
+    llm = ChatOpenAI(model="gpt-4o")
+
+    workflow = StateGraph(AgentState)
+    workflow.add_node("on_chain_data_analyst", on_chain_data_analyst)
+    workflow.set_entry_point("on_chain_data_analyst")
+    research_graph = workflow.compile()
+
+    # Initialize state with messages as a list
+    initial_state = {
+        "messages": [
+            HumanMessage(content="Make trading decisions based on the provided data.")
+            ]       
+        ,
+        "data": {
+            "slugs": ["bitcoin"],
+            "start_date": "2024-06-07",
+            "end_date": "2024-08-08",
+            "time_interval": "4h",
+        },
+        "metadata": {
+            "request_id": "test-123",
+            "timestamp": "2025-07-02T12:00:00Z"
         }
-
-        progress.update_status("onchain_agent", ticker, "Calculating final signal")
-        bullish_signals = signals.count("bullish")
-        bearish_signals = signals.count("bearish")
-
-        if bullish_signals > bearish_signals:
-            overall_signal = "bullish"
-        elif bearish_signals > bullish_signals:
-            overall_signal = "bearish"
-        else:
-            overall_signal = "neutral"
-
-        confidence = round(max(bullish_signals, bearish_signals) / len(signals), 2) * 100
-
-        onchain_analysis[ticker] = {
-            "signal": overall_signal,
-            "confidence": confidence,
-            "reasoning": reasoning,
-        }
-
-        progress.update_status("onchain_agent", ticker, "Done")
-
-    message = HumanMessage(
-        content=json.dumps(onchain_analysis),
-        name="onchain_data_analyst_agent",
-    )
-
-    if state["metadata"]["show_reasoning"]:
-        show_agent_reasoning(onchain_analysis, "On-Chain Data Analyst Agent")
-
-    state["data"]["analyst_signals"]["onchain_data_analyst_agent"] = onchain_analysis
-
-    return {
-        "messages": [message],
-        "data": data,
     }
+
+    final_state = research_graph.invoke(initial_state)
+
+    print(final_state)

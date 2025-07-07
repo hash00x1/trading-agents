@@ -4,16 +4,16 @@ import san
 san.ApiConfig.api_key = "rkf5d3lrsulqpyl3_47npxf6doa5fi4ok"
 
 # available metrics in santiment
-# metrics = san.available_metrics()
-# print(metrics)
+metrics = san.available_metrics()
+print(metrics)
 # Fetch OHLCV data
-data = san.get(
-    "social_dominance_telegram/bitcoin",        # <-- replace 'bitcoin' with your asset slug, e.g. 'ethereum', 'aave', etc.
-    # Slug="bitcoin", 
-    from_date="2024-01-01T00:00:00+00:00",
-    to_date="2024-01-10T23:59:59+00:00",
-    interval="1d"
-)
+# data = san.get(
+#     "social_dominance_telegram/bitcoin",        # <-- replace 'bitcoin' with your asset slug, e.g. 'ethereum', 'aave', etc.
+#     # Slug="bitcoin", 
+#     from_date="2024-01-01T00:00:00+00:00",
+#     to_date="2024-01-10T23:59:59+00:00",
+#     interval="1d"
+# )
 # # Adjusted date range within the allowed interval
 # data_1 = san.get(
 #     "active_addresses_30d/bitcoin",  # Replace 'bitcoin' with your asset slug
@@ -30,5 +30,5 @@ data = san.get(
 
 # Display result
 # print(data_1)
-print(data)
+# print(data)
 

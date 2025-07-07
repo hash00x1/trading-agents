@@ -11,7 +11,9 @@ from .api_price import (
     get_prices,
 )
 # from .news import scrape_news_pages, get_crypto_social_news_openai, get_crypto_global_news_openai
-
+from .api_onchain import (
+    get_daily_active_addresses
+)
 from .api_santiment import (
     get_sentiment_weighted_total,
     get_social_volume_total,
@@ -37,6 +39,7 @@ __all__ = [
     'python_repl_tool',
     'write_document',
     'read_document',
+    'get_daily_active_addresses',
     'get_prices',
     'get_sentiment_weighted_total',
     'get_social_volume_total',
