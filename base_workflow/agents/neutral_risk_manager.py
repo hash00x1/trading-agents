@@ -1,7 +1,7 @@
 from langchain_openai import ChatOpenAI
 from .debate_agent import DialogueAgent
 from langchain_core.messages import SystemMessage
-
+from base_workflow.graph.state import AgentState
 
 neutral_risk_manager_system_message = """
 You are the Neutral Risk Manager, responsible for maintaining a balanced and pragmatic risk profile. 
@@ -12,8 +12,15 @@ You operate as a stabilizing force in the team, seeking sustainable performance.
 Use the ReAct framework to reason through market events and respond with well-measured risk management actions.
 """
 llm = ChatOpenAI(model='gpt-4o-mini')
-neutral_risk_manager = DialogueAgent(
-    name="Neutral Risk Manager",
-    system_message=SystemMessage(content=neutral_risk_manager_system_message ),
-    model=llm,
-)
+
+def neutral_risk_manager(state: AgentState):
+    agent = DialogueAgent(
+        name="Neutral Risk Manager",
+        system_message=SystemMessage(content=neutral_risk_manager_system_message ),
+        model=llm,
+        state=state
+    )
+    
+    message_content = agent.send()
+    # change later
+    return agent.state

@@ -115,7 +115,6 @@ def news_analyst(state: AgentState):
         content=json.dumps(news_sentiment_analysis),
         name="sentiment_agent",
     )
-
     return {
         "messages": [message],
         "data": data,

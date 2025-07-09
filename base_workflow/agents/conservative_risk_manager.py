@@ -1,7 +1,8 @@
 from calendar import c
 from langchain_openai import ChatOpenAI
-from .debate_agent import DialogueAgentWithTools
+from .debate_agent import DialogueAgent
 from langchain_core.messages import SystemMessage
+from base_workflow.graph.state import AgentState
 
 
 
@@ -13,12 +14,16 @@ Provide clear warnings to the Trader Agent when market conditions become unfavor
 Rely on the ReAct prompting approach to proactively detect risks and recommend protective actions. 
 You ensure the firm’s long-term sustainability and compliance.
 """
-conservative_risk_manager_tools = ["arxiv", "ddg-search", "wikipedia"]
 llm = ChatOpenAI(model="gpt-4o")
 
-conservative_risk_manager = DialogueAgentWithTools(
-    name="Conservative Risk Manager",
-    system_message=SystemMessage(content=conservative_risk_manager_system_message ),
-    model=llm,
-    tool_names=conservative_risk_manager_tools
-)
+def conservative_risk_manager(state: AgentState):
+    agent = DialogueAgent(
+        name="Conservative Risk Manager",
+        system_message=SystemMessage(content=conservative_risk_manager_system_message ),
+        model=llm,
+        state=state
+    )
+    
+    message_content = agent.send()
+
+    return agent.state

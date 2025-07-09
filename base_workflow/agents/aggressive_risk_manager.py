@@ -1,6 +1,7 @@
 from langchain_openai import ChatOpenAI
-from .debate_agent import DialogueAgentWithTools
+from .debate_agent import DialogueAgent
 from langchain_core.messages import SystemMessage
+from base_workflow.graph.state import AgentState
 
 
 aggressive_risk_manager_system_message = """
@@ -15,9 +16,15 @@ and take ReAct-style actions that reflect an assertive risk appetite.
 aggressive_risk_manager_tools = ["arxiv", "ddg-search", "wikipedia"]
 llm = ChatOpenAI(model="gpt-4o")
 
-aggressive_risk_manager = DialogueAgentWithTools(
-    name="Aggressive Risk Manager",
-    system_message=SystemMessage(content=aggressive_risk_manager_system_message ),
-    model=llm,
-    tool_names=aggressive_risk_manager_tools
-)
+def aggressive_risk_manager(state: AgentState):
+    agent = DialogueAgent(
+        name="Aggressive Risk Manager",
+        system_message=SystemMessage(content=aggressive_risk_manager_system_message),
+        model=llm,
+        state=state
+    )
+    
+    message_content = agent.send()
+    # change later
+    return agent.state
+
