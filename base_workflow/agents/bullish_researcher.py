@@ -6,7 +6,6 @@ from typing import Optional
 
 def create_bullish_researcher(
     model: ChatOpenAI, 
-    state: AgentState, 
     tool_names: Optional[list[str]] = None
 ):
     bullish_researcher_system_message = SystemMessage(content="""
@@ -19,7 +18,6 @@ def create_bullish_researcher(
             name="Bullish Researcher",
             system_message=bullish_researcher_system_message,
             model=model,
-            state=state,
             tool_names=tool_names
         )
     else:
@@ -27,6 +25,5 @@ def create_bullish_researcher(
             name="Bullish Researcher",
             system_message=bullish_researcher_system_message,
             model=model,
-            state=state
         )
 

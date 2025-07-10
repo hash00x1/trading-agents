@@ -6,7 +6,6 @@ from base_workflow.graph.state import AgentState
 
 def create_bearish_researcher(
     model: ChatOpenAI,
-    state: AgentState,
     tool_names: Optional[list[str]] = None
 ):
     bearish_researcher_system_message = SystemMessage(content="""
@@ -21,7 +20,6 @@ def create_bearish_researcher(
             name="Bearish Researcher",
             system_message=bearish_researcher_system_message,
             model=model,
-            state=state,
             tool_names=tool_names
         )
     else:
@@ -29,6 +27,5 @@ def create_bearish_researcher(
             name="Bearish Researcher",
             system_message=bearish_researcher_system_message,
             model=model,
-            state=state
         )
 

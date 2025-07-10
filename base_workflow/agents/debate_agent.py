@@ -10,11 +10,14 @@ from langchain_core import messages
 from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage
 from langchain.agents import Agent, AgentType, initialize_agent, load_tools
+from sympy import sequence
 from base_workflow.graph.state import AgentState
 from operator import add
 from typing import Annotated, Sequence
 from langchain.schema import BaseMessage
 import operator
+from typing import Union, List
+
 
 class DialogueAgent:
     def __init__(
@@ -22,13 +25,11 @@ class DialogueAgent:
         name: str,
         system_message: SystemMessage,
         model: ChatOpenAI,
-        state: AgentState,
     ) -> None:
         self.name = name
         self.system_message = system_message
         self.model = model
         self.prefix = f"{self.name}: "
-        self.state = state
 
         self.messages_history: Annotated[Sequence[BaseMessage], operator.add] = []
         self.messages: List[str] = []
@@ -49,7 +50,7 @@ class DialogueAgent:
         self.messages.append("\n" + str(message.content))
         return str(message.content)
 
-    def receive(self, name: str, message: str) -> None:
+    def receive(self, name: str, message: Union[str, BaseMessage, Sequence[BaseMessage]]) -> None:
         """
         Concatenates {message} spoken by {name} into message history
         """
@@ -63,11 +64,10 @@ class DialogueAgentWithTools(DialogueAgent):
         name: str,
         system_message: SystemMessage,
         model: ChatOpenAI,
-        state: AgentState,
         tool_names: List[str],
         **tool_kwargs,
     ) -> None:
-        super().__init__(name, system_message, model, state)
+        super().__init__(name, system_message, model)
         self.tools = load_tools(tool_names, **tool_kwargs)
 
     def send(self) -> str:
@@ -105,12 +105,22 @@ class DialogueSimulatorAgent:
     def __init__(
         self,
         agents: list[DialogueAgent],
+        name: str,
         rounds: int = 6,
     ) -> None:
         self.agents = agents
+        self.name = name
         self._step = 0
         self.select_next_speaker = select_next_speaker
         self.rounds = rounds
+
+    def inject(self, name: str, messages: Union[BaseMessage, Sequence[BaseMessage]]):
+        """
+        Initiates the conversation with a {message} from {name}
+        """
+        for agent in self.agents:
+            agent.receive(name=name, message=messages)
+
 
     def step(self) -> tuple[str, str]:
         # 1. choose the next speaker
@@ -131,16 +141,17 @@ class DialogueSimulatorAgent:
     
     def run(
             self,
-            state: Optional[AgentState] = None,
+            state: AgentState,
             ) -> List[tuple[str, str]]:
         """
         Resets, injects the initial message, and runs the conversation
         """
         self._step = 0
         log: List[tuple[str, str]] = []
+        messages_history = state["messages"]
 
         # kick things off
-        log.append(("previous knowledge", knowledge))
+        self.inject(name = self.name, messages=messages_history)
 
         for _ in range(self.rounds):
             name, message = self.step()
@@ -176,7 +187,6 @@ bearish_researcher = DialogueAgent(
     system_message=SystemMessage(content=bearish_researcher_system_message),
     model=llm,
     # tool_names=bearish_researcher_tools,
-    state = test_state
 )    
 
 bullish_researcher_tools = ["arxiv", "ddg-search", "wikipedia"]
@@ -190,7 +200,6 @@ bullish_researcher = DialogueAgent(
     system_message=SystemMessage(content=bullish_researcher_system_message),
     model=llm,
     # tool_names=bullish_researcher_tools,
-    state = test_state
 )
 
 if __name__ == '__main__':

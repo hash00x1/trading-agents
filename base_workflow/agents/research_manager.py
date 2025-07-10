@@ -1,3 +1,4 @@
+from langchain.chains import conversation
 from typer.cli import state
 from base_workflow.agents.debate_agent import DialogueAgentWithTools, DialogueSimulatorAgent, DialogueAgent
 from base_workflow.agents import create_bearish_researcher, create_bullish_researcher
@@ -14,7 +15,8 @@ from typing import Any
 class ResearchReport:
     signal: Literal["Buy", "Sell", "Hold"]
     report: str
-
+    
+# change this to support different slug
 class ResearchManager(DialogueSimulatorAgent):
     """
     Evaluating recommendations and insights from analysts and researchers.
@@ -35,14 +37,13 @@ class ResearchManager(DialogueSimulatorAgent):
             )
 
         research_agents=[
-           create_bullish_researcher(model=self.model, state=deepcopy(state)), 
-           create_bearish_researcher(model=self.model, state=deepcopy(state))
+           create_bullish_researcher(model=self.model), 
+           create_bearish_researcher(model=self.model)
            ]
-        super().__init__(agents=research_agents, rounds=rounds)
-        self.data = state["data"]
+        super().__init__(agents=research_agents, name="Research Manager", rounds=rounds)
 
 
-    def generate_report(self, conversation_log: str):
+    def generate_report(self, conversation_log: List[tuple[str, str]]):
         analysis_prompt = f"""
         You are a financial analyst assistant. Your task is to read the conversation log between
         a Bullish Researcher and a Bearish Researcher. Based on this multi-round debate, please generate
@@ -88,10 +89,11 @@ class ResearchManager(DialogueSimulatorAgent):
         """
 
         # Call the LLM to get the analysis
-        report = self.model.invoke([
+        report_msg = self.model.invoke([
                 SystemMessage(content="You are a financial report assistant. Your task is..."),
                 HumanMessage(content=analysis_prompt)
             ])
+        report = report_msg.content
         signal_prompt = f"""
             Based on the following report, output the final trading signal only.
 
@@ -100,7 +102,8 @@ class ResearchManager(DialogueSimulatorAgent):
             Please return only one line in this format:
             Trading Signal: **Buy** / **Sell** / **Hold**
             """
-        signal = self.model.invoke([HumanMessage(content=signal_prompt)])
+        signal_msg = self.model.invoke([HumanMessage(content=signal_prompt)])
+        signal = signal_msg.content 
         self.research_analysis = {
             "signal": signal,
             "report": report,
@@ -111,36 +114,27 @@ class ResearchManager(DialogueSimulatorAgent):
             name = "research_manager"
         )      
         
-        return {
-            "messages":[message],
-            "data": self.data          
-        }
+        return message
 
-    def analysis(self, state: Optional[AgentState] = None) -> str:
-        # use the real data from the conversation log to feed the system.
-        log = super().run(state)
-        for speaker, text in log:
-            print(f"({speaker}): {text}\n")
+    # def analysis(self, messages: AgentState) -> str:
+    #     # use the real data from the conversation log to feed the system.
+    #     log = super().run(messages)
+    #     # for speaker, text in log:
+    #     #     print(f"({speaker}): {text}\n")
 
-        str_log = str(log)
-        return str_log
+    #     str_log = str(log)
+    #     return str_log
     
-    def _format_analyst_summary(self, analyst_outputs: dict[str, Any]) -> str:
-        summary = "Please consider the following analyst summaries:\n\n"
-        for analyst, report in analyst_outputs.items():
-            summary += f"## {analyst}\n"
-            if isinstance(report, dict):
-                for key, val in report.items():
-                    summary += f"- **{key.capitalize()}**: {val}\n"
-            else:
-                summary += f"- {report}\n"
-            summary += "\n"
-        return summary
 
-    def __call__(self, analyst_outputs: dict[str, Any]):
-        initial_knowledge = self._format_analyst_summary(analyst_outputs)
-        log = self.analysis(initial_knowledge)
-        return self.generate_report(conversation_log=log)
+    def __call__(self, state: AgentState):
+        data = state.get("data", {})
+        # slugs = state["data"].get("slugs", [])
+        conversation = super().run(state)
+        message = self.generate_report(conversation)
+        return {
+            "messages": [message],
+            "data": data,
+        }
 
 
 research_manager = ResearchManager(rounds= 6)
