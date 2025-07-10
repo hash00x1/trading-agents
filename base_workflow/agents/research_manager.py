@@ -7,36 +7,39 @@ from base_workflow.graph.state import AgentState
 from langchain.schema import SystemMessage, HumanMessage
 from typing import Optional
 from copy import deepcopy
+from typing_extensions import Literal
 import json
 from typing import Any
 
-analyst_team_conclusions = """
-## Technical Analyst
-**Role**: Analyzes price trends and technical indicators.  
-**Summary**: Bitcoin shows signs of breakout above $60,000 with strong RSI.  
-**Signals**: RSI at 61, MACD positive crossover.  
-**Recommendation**: Buy on breakout.
+# analyst_team_conclusions = """
+# ## Technical Analyst
+# **Role**: Analyzes price trends and technical indicators.  
+# **Summary**: Bitcoin shows signs of breakout above $60,000 with strong RSI.  
+# **Signals**: RSI at 61, MACD positive crossover.  
+# **Recommendation**: Buy on breakout.
 
-## On-chain Analyst
-**Role**: Tracks wallet behavior and blockchain activity.  
-**Summary**: Exchange outflows and accumulation addresses increasing.  
-**Signals**: NVT ratio falling, inflows down 18%.  
-**Recommendation**: Hold or accumulate.
+# ## On-chain Analyst
+# **Role**: Tracks wallet behavior and blockchain activity.  
+# **Summary**: Exchange outflows and accumulation addresses increasing.  
+# **Signals**: NVT ratio falling, inflows down 18%.  
+# **Recommendation**: Hold or accumulate.
 
-## Social Media Analyst
-**Role**: Assesses Twitter, Reddit, Google Trends sentiment.  
-**Summary**: Bullish sentiment surging, but overhype risk exists.  
-**Signals**: +36% Reddit mentions, bullish Twitter ratio 5:1.  
-**Recommendation**: Cautious Buy.
+# ## Social Media Analyst
+# **Role**: Assesses Twitter, Reddit, Google Trends sentiment.  
+# **Summary**: Bullish sentiment surging, but overhype risk exists.  
+# **Signals**: +36% Reddit mentions, bullish Twitter ratio 5:1.  
+# **Recommendation**: Cautious Buy.
 
-## News Analyst
-**Role**: Analyzes recent news headlines and narratives.  
-**Summary**: Spot Bitcoin ETF inflows remain strong; no major regulatory threats this week.  
-**Signals**: ETF net inflows +1.2B USD.  
-**Recommendation**: Hold with positive bias.
+# ## News Analyst
+# **Role**: Analyzes recent news headlines and narratives.  
+# **Summary**: Spot Bitcoin ETF inflows remain strong; no major regulatory threats this week.  
+# **Signals**: ETF net inflows +1.2B USD.  
+# **Recommendation**: Hold with positive bias.
 
-"""
-
+# """
+class ResearchReport:
+    signal: Literal["Buy", "Sell", "Hold"]
+    report: str
 
 class ResearchManager(DialogueSimulatorAgent):
     """
@@ -48,6 +51,7 @@ class ResearchManager(DialogueSimulatorAgent):
     def __init__(self, rounds:int, state: Optional[AgentState] = None):
         self.research_analysis: dict[str, Any] = {} 
         self.model = ChatOpenAI(model="gpt-4o", temperature=0.7)
+        self.data = state["data"]
 
         if state is None:
             state = AgentState(
@@ -61,9 +65,10 @@ class ResearchManager(DialogueSimulatorAgent):
            create_bearish_researcher(model=self.model, state=deepcopy(state))
            ]
         super().__init__(agents=research_agents, rounds=rounds)
+        self.data = state["data"]
 
 
-    def generate_report(self, conversation_log: List[tuple[str, str]]):
+    def generate_report(self, conversation_log: str):
         analysis_prompt = f"""
         You are a financial analyst assistant. Your task is to read the conversation log between
         a Bullish Researcher and a Bearish Researcher. Based on this multi-round debate, please generate
@@ -128,11 +133,13 @@ class ResearchManager(DialogueSimulatorAgent):
         }
         
         message = HumanMessage(
-            content = json.dumps(self.research_analysis)
+            content = json.dumps(self.research_analysis),
+            name = "research_manager"
         )      
         
         return {
-            "message":[message]
+            "messages":[message],
+            "data": self.data          
         }
 
     def analysis(self, knowledge) -> str:
@@ -143,13 +150,26 @@ class ResearchManager(DialogueSimulatorAgent):
 
         str_log = str(log)
         return str_log
+    
+    def __call__(self, knowledge: str):
+        log = self.analysis(knowledge)
+        return self.generate_report(conversation_log=log)
 
 
-# Initialize the Trader agent
-research_manager = ResearchManager(rounds=6)       
+research_manager = ResearchManager(rounds= 6)
 
 # Test the Trader agent
 if __name__ == "__main__":
+    test_state = AgentState(
+        messages=[],
+        data={
+            "tickers": ["ohlcv/bitcoin" ],
+            "start_date": "2024-06-07",
+            "end_date": "2024-08-08",
+            "time_interval": "4h",
+        },
+        metadata={"show_reasoning": False},
+    )
     initial_knowledge = "Please discuss Bitcoin's investment potential over the next 6 months."
     result = research_manager.analysis(knowledge=initial_knowledge)
     reply = research_manager.generate_report(conversation_log=result)

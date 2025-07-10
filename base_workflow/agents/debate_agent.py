@@ -40,7 +40,7 @@ class DialogueAgent:
         message = self.model.invoke(
             [
                 self.system_message,
-                HumanMessage(content="\n".join([str(m.content) for m in self.messages_history] + [self.prefix])), # put in whole message history for the agents to debate
+                HumanMessage(content="\n".join([str(m.content) for m in self.messages_history] + [self.prefix])),  # put in whole message history for the agents to debate
             ]
         )
         # self.messages records the messages from this dialogagent. self.messages_history records the whole message history.
@@ -52,9 +52,7 @@ class DialogueAgent:
         """
         Concatenates {message} spoken by {name} into message history
         """
-        # self.message_history.append(f"{name}: {message}")
         self.messages_history = operator.add(self.messages_history, [HumanMessage(content=f"{name}: {message}")])
-        #self.state["messages"] = list(self.state["messages"]) + [HumanMessage(content=f"{name}: {message}")]
 
 
 # for future devolop
@@ -96,8 +94,6 @@ class DialogueAgentWithTools(DialogueAgent):
         self.messages.append("\n" + str(message.content))
 
         return str(message.content)
-    
-    # maybe also send final message
 
 # Function to alternate between Bullish and Bearish Researchers
 def select_next_speaker(step: int, agents: List[DialogueAgent]) -> int:
@@ -105,9 +101,6 @@ def select_next_speaker(step: int, agents: List[DialogueAgent]) -> int:
 
 
 class DialogueSimulatorAgent:
-# Change this so that it could be reused with following functions:
-# select rounds of debate.
-# support different 
     def __init__(
         self,
         agents: list[DialogueAgent],
@@ -142,10 +135,6 @@ class DialogueSimulatorAgent:
         """
         Resets, injects the initial message, and runs the conversation
         """
-        # 将逻辑改为将两个agent的对话分别返回。然后再做处理。
-        # 也许Dialogue Agent的定义可以在这里进行定义.
-        # for agent in self.agents:
-        #     agent.reset()
         self._step = 0
         log: List[tuple[str, str]] = []
 
