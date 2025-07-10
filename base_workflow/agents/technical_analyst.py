@@ -66,7 +66,7 @@ def technical_analyst(state: AgentState):
     for slug in slugs:
         # Get the historical price data
         prices = get_prices(
-            slug=slug,
+            slug="ohlcv/"+slug,
             start_date=start_date,
             end_date=end_date,
             time_interval=interval

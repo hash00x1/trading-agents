@@ -25,7 +25,7 @@ def news_analyst(state: AgentState):
     news_sentiment_analysis = {}
 
     for slug in slugs:
-        progress.update_status("news_analyst", slug, "Analising news sentiment.")
+        progress.update_status("news_analyst", slug, "Analysing news sentiment.")
         news_analyst_system_message = """
         You are a crypto news researcher, 
         You play as analyst assistant in a multi-agent system, focused on gathering and analysing news and trends.

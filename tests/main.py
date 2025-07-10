@@ -108,7 +108,7 @@ def create_workflow(selected_analysts=None):
     workflow.add_node("technical_analyst", technical_analyst)
     workflow.add_node("social_media_analyst", social_media_analyst)
     workflow.add_node("news_analyst", news_analyst)
-    # workflow.add_node("on_chain_analyst", on_chain_analyst)
+    workflow.add_node("on_chain_analyst", on_chain_analyst)
     workflow.add_node("research_manager", research_manager)
     # workflow.add_node("risk_managemer", risk_manager)
     #workflow.add_node("portfolio_managemer", portfolio_manager)
@@ -117,8 +117,8 @@ def create_workflow(selected_analysts=None):
     workflow.set_entry_point("technical_analyst")
     workflow.add_edge("technical_analyst", "social_media_analyst")
     workflow.add_edge("social_media_analyst", "news_analyst")
-    # workflow.add_edge("news_analyst", "on_chain_analyst")
-    workflow.add_edge("news_analyst", "research_manager")
+    workflow.add_edge("news_analyst", "on_chain_analyst")
+    workflow.add_edge("on_chain_analyst", "research_manager")
     workflow.add_edge("research_manager", END)
     # workflow.add_edge("portfolio_management_agent", END)
 
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     test_state = AgentState(
         messages=[],
         data={
-            "slugs": ["ohlcv/bitcoin" ],
+            "slugs": ["bitcoin" ],
             "start_date": "2024-06-07",
             "end_date": "2024-08-08",
             "time_interval": "4h",

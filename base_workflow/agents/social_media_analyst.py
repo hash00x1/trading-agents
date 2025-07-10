@@ -90,10 +90,9 @@ def social_media_analyst(state: AgentState):
 
     for slug in slugs:
         progress.update_status("social_media_analyst", slug, "Collecting sentiment-related data...")
-        # 主要观察balance_total, 并且观察positive_total 和 negative_total的变化趋势并作为参考。
-        # 先把这部分的功能都实现，然后作为数据，和说明一起喂给analyst。
+
         _, sentiment_balance_total = get_sentiment_balance_total(
-            slug = 'social_sentiment_weighted_total' + slug,
+            slug = 'social_sentiment_weighted_total/' + slug,
             end_date=str(end_date),
             start_date=start_date,    
         )
@@ -101,13 +100,13 @@ def social_media_analyst(state: AgentState):
 
         # define > 0. In the past 7 days, more than half > 0 can be considered as positive 
         _, sentiment_negative_total = get_sentiment_negative_total(
-            slug = 'social_sentiment_negative_total' + slug,
+            slug = 'social_sentiment_negative_total/' + slug,
             end_date=str(end_date),
             start_date=start_date,
         )
 
         _, sentiment_positive_total = get_sentiment_positive_total(
-            slug = 'social_sentiment_positive_total' + slug,
+            slug = 'social_sentiment_positive_total/' + slug,
             end_date=str(end_date),
             start_date=start_date,
         )
@@ -257,7 +256,6 @@ def social_media_analyst(state: AgentState):
         # Just invoke the message is enough here.
         analyst_message = llm.invoke([HumanMessage(content=social_media_analyst_system_message)])
         content = str(analyst_message.content)
-        print(content)
         
         # Extract Social Media Sentiment Report
         part1_match = re.search(
