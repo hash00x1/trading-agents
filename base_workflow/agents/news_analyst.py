@@ -6,6 +6,7 @@ from langchain_core.messages import HumanMessage
 from base_workflow.graph.state import AgentState
 from langgraph.graph import StateGraph
 from langchain_openai import ChatOpenAI
+from base_workflow.utils.progress import progress
 import re
 import json
 
@@ -24,6 +25,7 @@ def news_analyst(state: AgentState):
     news_sentiment_analysis = {}
 
     for slug in slugs:
+        progress.update_status("news_analyst", slug, "Analising news sentiment.")
         news_analyst_system_message = """
         You are a crypto news researcher, 
         You play as analyst assistant in a multi-agent system, focused on gathering and analysing news and trends.
@@ -109,6 +111,7 @@ def news_analyst(state: AgentState):
             "confidence": confidence_level,
             "report": news_report,
         }
+        progress.update_status("news_analyst", slug, "Done")
 
     # Creat the news sentiment message
     message = HumanMessage(

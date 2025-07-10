@@ -89,8 +89,7 @@ def social_media_analyst(state: AgentState):
     social_media_sentiment_analysis = {}
 
     for slug in slugs:
-        progress.update_status("sentiment_analyst_agent", slug, "social_sentiment_analysing")
-    
+        progress.update_status("social_media_analyst", slug, "Collecting sentiment-related data...")
         # 主要观察balance_total, 并且观察positive_total 和 negative_total的变化趋势并作为参考。
         # 先把这部分的功能都实现，然后作为数据，和说明一起喂给analyst。
         _, sentiment_balance_total = get_sentiment_balance_total(
@@ -180,7 +179,7 @@ def social_media_analyst(state: AgentState):
             }
         
 
-        progress.update_status("social_media_analyst", slug, "social_media_analysis")
+        progress.update_status("social_media_analyst", slug,  "Summarizing and generating report")
         # define the social media analyst
         social_media_analyst_system_message = """
         You are a crypto social_media_analyst, 

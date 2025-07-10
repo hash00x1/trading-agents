@@ -46,7 +46,7 @@ from base_workflow.utils.progress import progress
 def technical_analyst(state: AgentState):
 
     """
-    Sophisticated technical analysis system that combines multiple trading strategies for multiple tickers:
+    Sophisticated technical analysis system that combines multiple trading strategies for multiple slugs:
     1. Trend Following
     2. Mean Reversion Change!
     3. Momentum / momentum indicators
@@ -58,40 +58,38 @@ def technical_analyst(state: AgentState):
     start_date = data["start_date"]
     end_date = data["end_date"]
     interval = data["time_interval"]
-    tickers = data["tickers"]
+    slugs = data["slugs"]
 
-    # Initialize analysis for each ticker
+    # Initialize analysis for each slug
     technical_analysis = {}
 
-    for ticker in tickers:
-        progress.update_status("technical_analyst_agent", ticker, "Analyzing price data")
-
+    for slug in slugs:
         # Get the historical price data
         prices = get_prices(
-            slug=ticker,
+            slug=slug,
             start_date=start_date,
             end_date=end_date,
             time_interval=interval
         )
 
         if not prices:
-            progress.update_status("technical_analyst_agent", ticker, "Failed: No price data found")
+            progress.update_status("technical_analyst_agent", slug, "Failed: No price data found")
             continue
 
         # Convert prices to a DataFrame
         prices_df = prices_to_df(prices)
         # print (prices_df)
         
-        progress.update_status("technical_analyst", ticker, "Calculating trend signals")
+        progress.update_status("technical_analyst", slug, "Calculating trend signals")
         trend_signals = calculate_trend_signals(prices_df)
 
-        progress.update_status("technical_analyst", ticker, "Calculating mean reversion")
+        progress.update_status("technical_analyst", slug, "Calculating mean reversion")
         mean_reversion_signals = calculate_mean_reversion_signals(prices_df)
 
-        progress.update_status("technical_analyst", ticker, "Calculating momentum")
+        progress.update_status("technical_analyst", slug, "Calculating momentum")
         momentum_signals = calculate_momentum_signals(prices_df)
 
-        progress.update_status("technical_analyst", ticker, "Analyzing volatility")
+        progress.update_status("technical_analyst", slug, "Analyzing volatility")
         volatility_signals = calculate_volatility_signals(prices_df)
 
         # Combine all signals using a weighted ensemble approach
@@ -101,7 +99,7 @@ def technical_analyst(state: AgentState):
             "momentum": 0.30,
             "volatility": 0.20        }
 
-        progress.update_status("technical_analyst", ticker, "Combining signals")
+        progress.update_status("technical_analyst", slug, "Combining signals")
         combined_signal = weighted_signal_combination(
             {
                 "trend": trend_signals,
@@ -112,8 +110,8 @@ def technical_analyst(state: AgentState):
             strategy_weights,
         )
 
-        # Generate detailed analysis report for this ticker
-        technical_analysis[ticker] = {
+        # Generate detailed analysis report for this slug
+        technical_analysis[slug] = {
             "signal": combined_signal["signal"],
             "confidence": round(combined_signal["confidence"] * 100),
             "strategy_signals": {
@@ -139,7 +137,7 @@ def technical_analyst(state: AgentState):
                 }
             },
         }
-        progress.update_status("technical_analyst", ticker, "Done")
+        progress.update_status("technical_analyst", slug, "Done")
 
     # Create the technical analyst message
     message = HumanMessage(
@@ -154,8 +152,8 @@ def technical_analyst(state: AgentState):
     # state["data"]["analyst_signals"]["technical_analyst_agent"] = technical_analysis
 
     return {
-        "messages": state["messages"] + [message],
-        "data": data,
+        "messages": [message],
+        "data": state["data"],
     }
 
 
@@ -565,7 +563,7 @@ if __name__ == "__main__":
     test_state = AgentState(
         messages=[],
         data={
-            "tickers": ["ohlcv/bitcoin" ],
+            "slugs": ["ohlcv/bitcoin" ],
             "start_date": "2024-06-07",
             "end_date": "2024-08-08",
             "time_interval": "4h",

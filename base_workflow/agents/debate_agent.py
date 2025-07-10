@@ -5,6 +5,7 @@ from langchain.schema import (
     HumanMessage,
     SystemMessage,
 )
+from typing import Optional
 from langchain_core import messages
 from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage

@@ -11,32 +11,6 @@ from typing_extensions import Literal
 import json
 from typing import Any
 
-# analyst_team_conclusions = """
-# ## Technical Analyst
-# **Role**: Analyzes price trends and technical indicators.  
-# **Summary**: Bitcoin shows signs of breakout above $60,000 with strong RSI.  
-# **Signals**: RSI at 61, MACD positive crossover.  
-# **Recommendation**: Buy on breakout.
-
-# ## On-chain Analyst
-# **Role**: Tracks wallet behavior and blockchain activity.  
-# **Summary**: Exchange outflows and accumulation addresses increasing.  
-# **Signals**: NVT ratio falling, inflows down 18%.  
-# **Recommendation**: Hold or accumulate.
-
-# ## Social Media Analyst
-# **Role**: Assesses Twitter, Reddit, Google Trends sentiment.  
-# **Summary**: Bullish sentiment surging, but overhype risk exists.  
-# **Signals**: +36% Reddit mentions, bullish Twitter ratio 5:1.  
-# **Recommendation**: Cautious Buy.
-
-# ## News Analyst
-# **Role**: Analyzes recent news headlines and narratives.  
-# **Summary**: Spot Bitcoin ETF inflows remain strong; no major regulatory threats this week.  
-# **Signals**: ETF net inflows +1.2B USD.  
-# **Recommendation**: Hold with positive bias.
-
-# """
 class ResearchReport:
     signal: Literal["Buy", "Sell", "Hold"]
     report: str
@@ -51,7 +25,7 @@ class ResearchManager(DialogueSimulatorAgent):
     def __init__(self, rounds:int, state: Optional[AgentState] = None):
         self.research_analysis: dict[str, Any] = {} 
         self.model = ChatOpenAI(model="gpt-4o", temperature=0.7)
-        self.data = state["data"]
+        # self.data = state["data"]
 
         if state is None:
             state = AgentState(
@@ -151,8 +125,21 @@ class ResearchManager(DialogueSimulatorAgent):
         str_log = str(log)
         return str_log
     
-    def __call__(self, knowledge: str):
-        log = self.analysis(knowledge)
+    def _format_analyst_summary(self, analyst_outputs: dict[str, Any]) -> str:
+        summary = "Please consider the following analyst summaries:\n\n"
+        for analyst, report in analyst_outputs.items():
+            summary += f"## {analyst}\n"
+            if isinstance(report, dict):
+                for key, val in report.items():
+                    summary += f"- **{key.capitalize()}**: {val}\n"
+            else:
+                summary += f"- {report}\n"
+            summary += "\n"
+        return summary
+
+    def __call__(self, analyst_outputs: dict[str, Any]):
+        initial_knowledge = self._format_analyst_summary(analyst_outputs)
+        log = self.analysis(initial_knowledge)
         return self.generate_report(conversation_log=log)
 
 
