@@ -370,21 +370,10 @@ def calculate_volatility_signals(prices_df):
     Volatility-based trading strategy
     """
     # Get the historical price data
-
-    prices = get_prices(
-        slug="ohlcv/bitcoin",
-        start_date="2024-06-07",
-        end_date="2024-08-08",
-        time_interval="1d"
-    )
-
-    # Convert prices to a DataFrame
-    prices_df = prices_to_df(prices)
-    # Calculate various volatility metrics
     returns = prices_df["close"].pct_change()
 
     # Historical volatility
-    hist_vol = returns.rolling(30).std() * math.sqrt(365)
+    hist_vol = returns.rolling(30*6).std() * math.sqrt(365*6)
 
     # Volatility regime detection
     vol_ma = hist_vol.rolling(90).mean()

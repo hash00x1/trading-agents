@@ -130,7 +130,7 @@ class DialogueSimulatorAgent:
     
     def run(
             self,
-            knowledge: str,
+            state: Optional[AgentState] = None,
             ) -> List[tuple[str, str]]:
         """
         Resets, injects the initial message, and runs the conversation

@@ -142,9 +142,9 @@ class ResearchManager(DialogueSimulatorAgent):
             "data": self.data          
         }
 
-    def analysis(self, knowledge) -> str:
+    def analysis(self, state: Optional[AgentState] = None) -> str:
         # use the real data from the conversation log to feed the system.
-        log = super().run(knowledge=knowledge)
+        log = super().run(state)
         for speaker, text in log:
             print(f"({speaker}): {text}\n")
 
