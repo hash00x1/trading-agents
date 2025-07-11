@@ -12,7 +12,7 @@ import re
 import json
 
 
-def portfolio_manager_agent(state: AgentState):
+def portfolio_manager(state: AgentState):
     messages = state.get("messages", [])
     data = state.get("data", {})
     slugs = data.get("slugs", [])
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     llm = ChatOpenAI(model="gpt-4o")
 
     workflow = StateGraph(AgentState)
-    workflow.add_node("portfolio_manager", portfolio_manager_agent)
+    workflow.add_node("portfolio_manager", portfolio_manager)
     workflow.set_entry_point("portfolio_manager")
     graph = workflow.compile()
 

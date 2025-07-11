@@ -110,8 +110,6 @@ def create_workflow(selected_analysts=None):
     workflow.add_node("research_manager", research_manager)
     workflow.add_node("risk_manager", risk_manager)
     workflow.add_node("portfolio_manager", portfolio_manager)
-
-    # workflow.add_node("portfolio_manager", portfolio_manager)
     # workflow.add_node("conditional_node", conditional_node)
     # workflow.add_node("write_db", write_to_db)
 
@@ -123,9 +121,9 @@ def create_workflow(selected_analysts=None):
     workflow.add_edge("news_analyst", "on_chain_analyst")
     workflow.add_edge("on_chain_analyst", "research_manager")
     workflow.add_edge("research_manager", "risk_manager")
-    workflow.add_edge("risk_manager", "portfolio_management_agent")
-    workflow.add_edge("portfolio_management_agent", END)
-        # Portfolio Manager 输出 -> 判断是否需要写入数据库
+    workflow.add_edge("risk_manager", "portfolio_manager")
+    workflow.add_edge("portfolio_manager", END)
+
     # workflow.add_edge("portfolio_manager", "conditional_node")
     # workflow.add_conditional_edges(
     #     "conditional_node",
