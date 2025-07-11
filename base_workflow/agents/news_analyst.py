@@ -5,7 +5,6 @@ from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import HumanMessage
 from base_workflow.graph.state import AgentState
 from langgraph.graph import StateGraph
-from langchain_openai import ChatOpenAI
 from base_workflow.utils.progress import progress
 import re
 import json

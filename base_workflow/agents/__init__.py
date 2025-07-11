@@ -8,7 +8,7 @@ from .research_manager import research_manager
 from .aggressive_risk_debator import create_aggressive_risk_debator
 from .conservative_risk_debator import create_conservative_risk_debator
 from .neutral_risk_debator import create_neutral_risk_debator
-from .portfolio_manager import portfolio_manager
+from .portfolio_manager_01 import portfolio_manager
 from .risk_manager import risk_manager
 from .debate_agent import (
     DialogueAgent,
@@ -27,7 +27,7 @@ __all__ = [
     'create_aggressive_risk_debator',
     'create_conservative_risk_debator',
     'create_neutral_risk_debator',
-    'portfolio_manager',
+    'portfolio_manager_01',
     'risk_manager',
     'DialogueAgent',
     'DialogueSimulatorAgent',
