@@ -9,6 +9,8 @@ from copy import deepcopy
 from typing_extensions import Literal
 import json
 from typing import Any
+from base_workflow.utils.progress import progress
+
 
 class ResearchReport:
     signal: Literal["Buy", "Sell", "Hold"]
@@ -111,9 +113,13 @@ class ResearchManager(DialogueSimulatorAgent):
 
     def __call__(self, state: AgentState):
         data = state.get("data", {})
-        # slugs = state["data"].get("slugs", [])
-        conversation = super().run(state)
-        message = self.generate_report(conversation)
+        slugs = state["data"].get("slugs", [])
+        for slug in slugs:
+            progress.update_status("research_manager", slug, "start debating rounds")
+            conversation = super().run(state)
+            progress.update_status("research_manager", slug, "generating report")
+            message = self.generate_report(conversation)
+            progress.update_status("research_manager", slug, "Done")
         return {
             "messages": [message],
             "data": data,

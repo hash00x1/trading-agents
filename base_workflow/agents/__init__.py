@@ -9,7 +9,7 @@ from .aggressive_risk_debator import create_aggressive_risk_debator
 from .conservative_risk_debator import create_conservative_risk_debator
 from .neutral_risk_debator import create_neutral_risk_debator
 from .portfolio_manager import portfolio_manager
-
+from .risk_manager import risk_manager
 from .debate_agent import (
     DialogueAgent,
     DialogueSimulatorAgent,
@@ -28,6 +28,7 @@ __all__ = [
     'create_conservative_risk_debator',
     'create_neutral_risk_debator',
     'portfolio_manager',
+    'risk_manager',
     'DialogueAgent',
     'DialogueSimulatorAgent',
     'DialogueAgentWithTools'
