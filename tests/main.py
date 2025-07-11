@@ -51,6 +51,7 @@ def parse_response(response):
 ##### Run the Crypto Agents Team #####
 def run(
     slugs: list[str],
+    wallet: list[str]
     start_date: str,
     end_date: str,
     time_interval: str = "4h",
@@ -63,35 +64,40 @@ def run(
     try:
         # Create a new workflow if analysts are customized
         agent = app
+        wallet = {'Dollar Balance': TOTAL_DOLLARS; 'Token Balance': BAG_OF_TOKENS}
+        slugs = ['ETH', 'BTC', 'ADA', 'SOL'] #bag of tokens -> generate randomly, or predefined. 
 
-        final_state = agent.invoke(
-            {
-                "messages": [
-                    HumanMessage(
-                        content="Make trading decisions based on the provided data.",
-                    )
-                ],
-                "data": {
-                    "slugs": slugs,
-                    # "portfolio": portfolio,
-                    "start_date": start_date,
-                    "end_date": end_date,
-                    "time_interval": time_interval,
+        for slug in slugs: 
+            final_state = agent.invoke(
+                {
+                    "messages": [
+                        HumanMessage(
+                            content="Make trading decisions based on the provided data.",
+                        )
+                    ],
+                    "data": {
+                        "slugs": slug,
+                        # "portfolio": portfolio,
+                        "start_date": start_date,
+                        "end_date": end_date,
+                        "time_interval": time_interval,
+                    },
+                    "metadata": {
+                        "show_reasoning": show_reasoning,
+                        # "model_name": model_name,
+                        # "model_provider": model_provider,
+                    },
                 },
-                "metadata": {
-                    "show_reasoning": show_reasoning,
-                    # "model_name": model_name,
-                    # "model_provider": model_provider,
-                },
-            },
-        )
-        return {
-            "messages": final_state["messages"],
-            "data": final_state["data"],
-        }
-    finally:
-        # Stop progress tracking
-        progress.stop()
+            )
+            return {
+                "messages": final_state["messages"],
+                "data": final_state["data"], #should be a key:value pair token ticker: +/- Balance bought .e.g SOL -> {'SOL': + 10} | withdrwa in dollars from wallet
+            }   
+        # -> use finale_state to update wallet -> wallet.update
+
+        finally:
+            # Stop progress tracking
+            progress.stop()
 
 
 def start(state: AgentState):
@@ -110,6 +116,7 @@ def create_workflow(selected_analysts=None):
     workflow.add_node("research_manager", research_manager)
     workflow.add_node("risk_manager", risk_manager)
     workflow.add_node("portfolio_manager", portfolio_manager)
+    workflow.add_node("hedging_tools", ToolNode) # -> needs error handlng when amount of tokens bough it larger than dollars available
     # workflow.add_node("conditional_node", conditional_node)
     # workflow.add_node("write_db", write_to_db)
 
@@ -122,7 +129,8 @@ def create_workflow(selected_analysts=None):
     workflow.add_edge("on_chain_analyst", "research_manager")
     workflow.add_edge("research_manager", "risk_manager")
     workflow.add_edge("risk_manager", "portfolio_manager")
-    workflow.add_edge("portfolio_manager", END)
+    workflow.add_edge("portfolio_manager", "hedging_tools") # <- bound to the portfolio tools (s. langchain documentation tools.bind())
+    workflow.add_edge("hedging_tools", END)
 
     # workflow.add_edge("portfolio_manager", "conditional_node")
     # workflow.add_conditional_edges(
@@ -163,5 +171,5 @@ if __name__ == "__main__":
         time_interval=test_state["data"]["time_interval"],
         # portfolio=portfolio,
         show_reasoning=test_state["metadata"].get("show_reasoning", False),
-    )
+        )
     print(result)
