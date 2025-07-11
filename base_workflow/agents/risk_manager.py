@@ -1,57 +1,141 @@
 from base_workflow.agents.debate_agent import DialogueAgentWithTools, DialogueSimulatorAgent, DialogueAgent
 from typing import List
 from langchain_openai import ChatOpenAI
-from base_workflow.agents import aggressive_risk_manager, conservative_risk_manager, neutral_risk_manager
+from base_workflow.agents import create_aggressive_risk_debator, create_conservative_risk_debator, create_neutral_risk_debator
 from base_workflow.graph.state import AgentState
-
-
-
-llm = ChatOpenAI(model='gpt-4o-mini', temperature=0.7)
-
+from langchain.schema import SystemMessage, HumanMessage
+from typing import Any
+from typing import Optional
+import json
+from typing import Any
 
 class RiskManager(DialogueSimulatorAgent):
-    """
-    Evaluating recommendations and insights from analysts and researchers.
-    Deciding on the timing and size of trades to maximize trading returns
-    Placing buy or sell orders in the market.
-    Adjusting portfolio allocations in response to market changes and new information.
-    """
-    def __init__(self, portfolio_agents: List[DialogueAgentWithTools], rounds) -> None:
-        super().__init__(agents=portfolio_agents, rounds=rounds)
+    def __init__(self, rounds:int, state: Optional[AgentState] = None):
+        self.research_analysis: dict[str, Any] = {} 
+        self.model = ChatOpenAI(model="gpt-4o", temperature=0.7)
 
+        if state is None:
+            state = AgentState(
+                messages=[],
+                data={},
+                metadata={}
+            )
 
-    def analyze_conversation(self, conversation_log: List[tuple[str, str]]) -> str:      # Use the LLM to summarize and analyze the conversation log
+        debator_agents=[
+            create_aggressive_risk_debator(model=self.model), 
+            create_conservative_risk_debator(model=self.model),
+            create_neutral_risk_debator(model=self.model)
+           ]
+        super().__init__(agents=debator_agents, name="Risk Manager", rounds=rounds)
+
+    def generate_report(self, conversation_log: list[tuple[str, str]]):
       analysis_prompt = f"""
-      Please analyze the following conversation between the Analyst and Researcher. 
-      Provide insights based on both quantitative and qualitative factors to help the 
-      portfolio manager make an informed trading decision.
+      You are a financial risk assistant. Your task is to read the conversation log between
+      an Aggressive Risk Debator, a Conservative Risk Debator, and a Neutral Risk Debator.
+      Based on this multi-round debate, please generate a structured risk analysis report
+      to assist a trader in managing portfolio risks. In the last section of the report,
+      you must give an actionable risk-based trading signal.
 
       Conversation Log:
       {conversation_log}
 
-      Analysis:
-      - Summarize key insights
-      - Highlight any important trends, quantitative data, or qualitative insights
-      - Provide a recommendation for the next trading action (buy, sell, hold, etc.)
+      The report should follow this structure:
+      
+          # Executive Summary
+          Briefly summarize the overall risk outlook, the key risk factors discussed, and the final recommendation (Buy / Sell / Hold).
+          Keep it concise (3–5 lines), so a portfolio manager can quickly understand the core points.
+
+          # Risk Factors
+          ## High-Risk Indicators
+          List concerns raised by the Conservative Risk Debator or data suggesting high downside risk.
+
+          ## Low-Risk Indicators
+          List arguments made by the Aggressive Risk Debator or indicators of limited risk.
+
+          ## Neutral Risk Factors
+          Summarize balanced or uncertain views from the Neutral Risk Debator.
+
+          # Quantitative Risk Metrics
+          If any were discussed, list numerical risk indicators (e.g., volatility index, Sharpe ratio, drawdowns).
+
+          # Macroeconomic or External Influences
+          Summarize qualitative insights such as macroeconomic conditions, regulatory risks, or market sentiment.
+
+          # Metadata Summary
+          Include context details like:
+          - Assets discussed
+          - Time interval
+          - Date range
+          - Tools or sources referenced
+
+          # Final Recommendation
+          - Based on the report above, provide a clear trading signal.
+          - Format: `Trading Signal: **Buy** / **Hold** / **Sell**`
+          - Please return only the signal in that section.
+
+          Return only the full report in markdown-style formatting.
       """
 
-      # Call the LLM to get the analysis
-      analysis = self.model.predict(analysis_prompt)
-      return analysis
+      # Step 1: Ask model to generate report
+      report_msg = self.model.invoke([
+          SystemMessage(content="You are a financial risk report assistant."),
+          HumanMessage(content=analysis_prompt)
+      ])
+      report = report_msg.content
+
+      # Step 2: Extract trading signal only
+      signal_prompt = f"""
+      Based on the following risk report, extract the final trading signal only.
+
+      {report}
+
+      Return a single line in this format:
+      Trading Signal: **Buy** / **Sell** / **Hold**
+      """
+
+      signal_msg = self.model.invoke([HumanMessage(content=signal_prompt)])
+      signal = signal_msg.content
+
+      # Step 3: Store and return as HumanMessage
+      self.risk_analysis = {
+          "signal": signal,
+          "report": report,
+      }
+
+      message = HumanMessage(
+          content=json.dumps(self.risk_analysis),
+          name="risk_manager"
+      )
+
+      return message
 
 
-    def analysis(self, knowledge) -> tuple[str, str]:
-        log = super().run(knowledge=knowledge) # later use other data from the conversation log to replace the knowledge.
-        # print it out:
-        for speaker, text in log:
-            print(f"({speaker}): {text}\n")
-        return {"messages": [message], "data": data}
+    def __call__(self, state: AgentState):
+      data = state.get("data", {})
+      # slugs = state["data"].get("slugs", [])
+      conversation = super().run(state)
+      message = self.generate_report(conversation)
+      return {
+          "messages": [message],
+          "data": data,
+      }
 
 
-
-risk_manager = RiskManager(portfolio_agents = [aggressive_risk_manager, conservative_risk_manager, neutral_risk_manager], rounds=6)       
+risk_manager = RiskManager(rounds=6)       
 
 
 if __name__ == "__main__":
-  result = risk_manager.analysis()
-  print(result)
+    test_state = AgentState(
+        messages=[],
+        data={
+            "tickers": ["ohlcv/bitcoin" ],
+            "start_date": "2024-06-07",
+            "end_date": "2024-08-08",
+            "time_interval": "4h",
+        },
+        metadata={"show_reasoning": False},
+    )
+    initial_knowledge = "Please discuss Bitcoin's investment potential over the next 6 months."
+    result = risk_manager.run(test_state)
+    reply = risk_manager.generate_report(conversation_log=result)
+    print(result)

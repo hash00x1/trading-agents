@@ -1,6 +1,4 @@
-from langchain.chains import conversation
-from typer.cli import state
-from base_workflow.agents.debate_agent import DialogueAgentWithTools, DialogueSimulatorAgent, DialogueAgent
+from base_workflow.agents.debate_agent import DialogueSimulatorAgent
 from base_workflow.agents import create_bearish_researcher, create_bullish_researcher
 from typing import List
 from langchain_openai import ChatOpenAI
@@ -18,12 +16,6 @@ class ResearchReport:
     
 # change this to support different slug
 class ResearchManager(DialogueSimulatorAgent):
-    """
-    Evaluating recommendations and insights from analysts and researchers.
-    Deciding on the timing and size of trades to maximize trading returns
-    Placing buy or sell orders in the market.
-    Adjusting portfolio allocations in response to market changes and new information.
-    """
     def __init__(self, rounds:int, state: Optional[AgentState] = None):
         self.research_analysis: dict[str, Any] = {} 
         self.model = ChatOpenAI(model="gpt-4o", temperature=0.7)
@@ -115,15 +107,6 @@ class ResearchManager(DialogueSimulatorAgent):
         )      
         
         return message
-
-    # def analysis(self, messages: AgentState) -> str:
-    #     # use the real data from the conversation log to feed the system.
-    #     log = super().run(messages)
-    #     # for speaker, text in log:
-    #     #     print(f"({speaker}): {text}\n")
-
-    #     str_log = str(log)
-    #     return str_log
     
 
     def __call__(self, state: AgentState):
@@ -137,7 +120,7 @@ class ResearchManager(DialogueSimulatorAgent):
         }
 
 
-research_manager = ResearchManager(rounds= 6)
+research_manager = ResearchManager(rounds=6)
 
 # Test the Trader agent
 if __name__ == "__main__":
@@ -152,7 +135,7 @@ if __name__ == "__main__":
         metadata={"show_reasoning": False},
     )
     initial_knowledge = "Please discuss Bitcoin's investment potential over the next 6 months."
-    result = research_manager.analysis(knowledge=initial_knowledge)
+    result = research_manager.run(test_state)
     reply = research_manager.generate_report(conversation_log=result)
     print(result)
 

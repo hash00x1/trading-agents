@@ -5,9 +5,9 @@ from .on_chain_analyst import on_chain_analyst
 from .bullish_researcher import create_bullish_researcher
 from .bearish_researcher import create_bearish_researcher
 from .research_manager import research_manager
-from .aggressive_risk_manager import aggressive_risk_manager
-from .conservative_risk_manager import conservative_risk_manager
-from .neutral_risk_manager import neutral_risk_manager
+from .aggressive_risk_debator import create_aggressive_risk_debator
+from .conservative_risk_debator import create_conservative_risk_debator
+from .neutral_risk_debator import create_neutral_risk_debator
 from .portfolio_manager import portfolio_manager
 
 from .debate_agent import (
@@ -24,9 +24,9 @@ __all__ = [
     'create_bullish_researcher',
     'create_bearish_researcher',
     'research_manager',
-    'aggressive_risk_manager',
-    'conservative_risk_manager',
-    'neutral_risk_manager',
+    'create_aggressive_risk_debator',
+    'create_conservative_risk_debator',
+    'create_neutral_risk_debator',
     'portfolio_manager',
     'DialogueAgent',
     'DialogueSimulatorAgent',
