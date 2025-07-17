@@ -12,7 +12,13 @@
     "editor.codeActionsOnSave": {
         "source.fixAll": "explicit",
     }},
-  "ruff.organizeImports": true,
-  "ruff.fixAll": true,
-  "editor.formatOnSave": true,
+  "sqltools.connections": [
+    {
+      "previewLimit": 50,
+      "driver": "SQLite",
+      "name": "Crypto Trade",
+      "database": "${workspaceFolder:crypto_agents}/base_workflow/outputs/trades.db"
+    }
+  ],
+  "sqltools.useNodeRuntime": false,
 }

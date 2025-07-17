@@ -10,7 +10,7 @@ import re
 
 def portfolio_manager(state: AgentState):
 	messages = state.get('messages', [])
-	data = state.get('data', {})
+	data = state.get('data', {})  # maybe also get price
 	slugs = data.get('slugs', [])
 	llm = ChatOpenAI(model='gpt-4o')
 	decisions = {}
@@ -23,7 +23,7 @@ def portfolio_manager(state: AgentState):
 		analyst_summary_prompt = f"""
         You are a crypto portfolio manager in a multi-agent system.
         For the asset **{slug}**, you have received signal reports from different analysts (technical, sentiment, on-chain, research, risk, news, etc.).
-        You currently have {dollars} in your wallet, the current market price of {slug} is {price_data}.
+        You currently have **{dollars}** in your wallet, the current market price of **{slug}** is **{price_data}**.
 		Your task is to synthesize these insights and give ONE final decision, in structured format:
         ---
         ### Final Decision (REQUIRED)
@@ -54,10 +54,9 @@ def portfolio_manager(state: AgentState):
 
 		print(f'{decisions}\n')
 
-	return {'decisions': decisions}
+	return {'final_decisions': decisions}
 
 
-d
 if __name__ == '__main__':
 	llm = ChatOpenAI(model='gpt-4o')
 

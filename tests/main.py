@@ -116,7 +116,7 @@ def create_workflow(selected_analysts=None):
     workflow.add_node("research_manager", research_manager)
     workflow.add_node("risk_manager", risk_manager)
     workflow.add_node("portfolio_manager", portfolio_manager)
-    workflow.add_node("hedging_tools", ToolNode) # -> needs error handlng when amount of tokens bough it larger than dollars available
+    workflow.add_node("hedging_tools", hedging_agent) # -> needs error handlng when amount of tokens bough it larger than dollars available
     # workflow.add_node("conditional_node", conditional_node)
     # workflow.add_node("write_db", write_to_db)
 
