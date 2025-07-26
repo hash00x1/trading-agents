@@ -8,53 +8,67 @@ from langgraph.graph import StateGraph
 import re
 
 
+# You have access to the following tools:
+# Calculate_Amount: "Description"
+# Buy: ""
+# Sell: ""
+# Hold: "" -> defined as return None
+# def Hold:
+#     return None
 def portfolio_manager(state: AgentState):
 	messages = state.get('messages', [])
 	data = state.get('data', {})  # maybe also get price
-	slugs = data.get('slugs', [])
+	slugs = data.get('slug', [])
 	llm = ChatOpenAI(model='gpt-4o')
 	decisions = {}
 
-	for slug in slugs:
-		progress.update_status(
-			'portfolio_manager', slug, 'Aggregating multi-agent signals and deciding.'
-		)
+	progress.update_status(
+		'portfolio_manager', slug, 'Aggregating multi-agent signals and deciding.'
+	)
 
-		analyst_summary_prompt = f"""
-        You are a crypto portfolio manager in a multi-agent system.
-        For the asset **{slug}**, you have received signal reports from different analysts (technical, sentiment, on-chain, research, risk, news, etc.).
-        You currently have **{dollars}** in your wallet, the current market price of **{slug}** is **{price_data}**.
-		Your task is to synthesize these insights and give ONE final decision, in structured format:
-        ---
-        ### Final Decision (REQUIRED)
-        Provide one final trading signal:
+	analyst_summary_prompt = f"""
+	You are a crypto portfolio manager in a multi-agent system.
+	For the asset **{slug}**, you have received signal reports from different analysts (technical, sentiment, on-chain, research, risk, news, etc.).
+	You currently have **{dollars}** in your wallet, the current market price of **{slug}** is **{price_data}**.
+	Your task is to synthesize these insights and give ONE final decision, in structured format:
+	---
+	### Final Decision (REQUIRED)
+	Provide one final trading signal:
 
-        `Final Decision: **Buy**`  | + quantity
-        `Final Decision: **Hold**`  | + quantity
-        `Final Decision: **Sell**`  | + quantity
+	`Final Decision: **Buy**`  | + quantity
+	`Final Decision: **Hold**`  | + quantity
+	`Final Decision: **Sell**`  | + quantity
 
-        Please keep the format consistent and clean. Do not include any additional output.
-		You have access to the following tools:
-		Calculate_Amount: "Description"
-		Buy: ""
-		Sell: ""
-		Hold: "" -> defined as return None 
-		def Hold:
-            return None
-        """
-		portfolio_decision_agent = create_react_agent(
-			llm, tools=[], state_modifier=analyst_summary_prompt
-		)
+	Please keep the format consistent and clean. Do not include any additional output.
+	You have access to the following tools:
+	Calculate_Amount: "Description"
+	Buy: ""
+	Sell: ""
+	Hold: "" -> defined as return None 
+	def Hold:
+		return None
+	"""
+	portfolio_decision_agent = create_react_agent(
+		llm, tools=[], state_modifier=analyst_summary_prompt
+	)
 
-		response = portfolio_decision_agent.invoke({'messages': messages})
-		content = response['messages'][-1].content
-		match_signal = re.search(r'Final Decision: \*\*(Buy|Hold|Sell)\*\*', content)
-		decisions[slug] = {'signal': match_signal.group(1) if match_signal else None}
-		progress.update_status('portfolio_manager', slug, 'Done')
+	response = portfolio_decision_agent.invoke({'messages': messages})
+	content = response['messages'][-1].content
+	match_signal = re.search(r'Final Decision: \*\*(Buy|Hold|Sell)\*\*', content)
+	decisions[slug] = {'signal': match_signal.group(1) if match_signal else None}
+	progress.update_status('portfolio_manager', slug, 'Done')
+	# use the left dollar to calculate the amount to buy
 
-		print(f'{decisions}\n')
-
-	return {'final_decisions': decisions}
+	print(f'{decisions}\n')
+	# slug needto be used later to write into the file.
+	# if decisions[slug]['signal'] == 'Buy':
+	# Calculate the amount to buy based on the current price and available dollars
+	# 	amount = data['dollars'] / price_data
+	# 	decisions[slug]['amount'] = amount
+	# elif decisions[slug]['signal'] == 'Sell':
+	# 	Assume we have a fixed amount to sell, calculate the rest of the dollars we can get from selling
+	# 	decisions[slug]['amount'] = data.get('portfolio', {}).get(slug, 0)
+	return {'final_decisions': decisions}  # final decision only contains the action.
 
 
 if __name__ == '__main__':

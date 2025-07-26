@@ -25,7 +25,11 @@ $ poetry install
 $ poetry self add poetry-dotenv-plugin
 ```
 4. change the api key for OPENAI_API_KEY to your key
-5. run to execute a test run
+5. clean up the existing files and set up the original portfolio.
+```bash
+$ poetry run python reset.py
+```
+6. run to execute a test run
 ```bash
 $ poetry run main
 ```

@@ -38,6 +38,7 @@ colorama = "^0.4.6"
 questionary = "^2.1.0"
 akshare = "^1.17.9"
 scipy = "^1.16.0"
+ccxt = "^4.4.95"
 
 [tool.poetry.plugins.dotenv]
 ignore = "false"
