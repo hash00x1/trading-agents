@@ -27,6 +27,7 @@ from .openai_news_crawler import (
 )
 
 from .sql_tool_kit import read_trades, buy, sell, hold
+from .reddit_util import fetch_top_from_category
 
 __all__ = [
 	'ask_user',
@@ -56,4 +57,5 @@ __all__ = [
 	'sell',
 	'hold',
 	'read_trades',
+	'fetch_top_from_category',
 ]

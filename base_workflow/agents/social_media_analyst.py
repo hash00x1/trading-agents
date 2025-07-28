@@ -13,13 +13,6 @@ import pandas as pd
 from scipy.stats import linregress
 
 from base_workflow.tools import (
-	get_social_volume_total,
-	get_social_volume_total_change_1d,
-	get_social_volume_total_change_7d,
-	get_social_volume_total_change_30d,
-	get_sentiment_balance_total,
-	get_sentiment_negative_total,
-	get_sentiment_positive_total,
 	get_fear_and_greed_index,
 )
 
@@ -73,7 +66,6 @@ def social_media_analyst(state: AgentState):
 	# start_dt = end_dt - timedelta(weeks=2)
 	# start_date = start_dt.date().isoformat()
 	# Change the start_data to be two weeks before the end_date
-	messages = state.get('messages', [])
 	data = state.get('data', {})
 	end_date_str = data.get('end_date')
 	end_date = datetime.strptime(str(end_date_str), '%Y-%m-%d')
@@ -82,7 +74,6 @@ def social_media_analyst(state: AgentState):
 
 	slugs = data.get('slugs', [])
 	llm = ChatOpenAI(model='gpt-4o-mini')
-	interval = data['time_interval']
 
 	# Initialize sentiment analysis for each slug
 	social_media_sentiment_data = {}
@@ -93,83 +84,38 @@ def social_media_analyst(state: AgentState):
 			'social_media_analyst', slug, 'Collecting sentiment-related data...'
 		)
 
-		_, sentiment_balance_total = get_sentiment_balance_total(
-			slug,
-			end_date=str(end_date),
-			start_date=start_date,
-		)
-		sentiment_balance_signal = analyse_sentiment_balance(sentiment_balance_total)
-
-		# define > 0. In the past 7 days, more than half > 0 can be considered as positive
-		_, sentiment_negative_total = get_sentiment_negative_total(
-			slug,
-			end_date=str(end_date),
-			start_date=start_date,
-		)
-
-		_, sentiment_positive_total = get_sentiment_positive_total(
-			slug,
-			end_date=str(end_date),
-			start_date=start_date,
-		)
-
-		sentiment_negative_growth_signal = sentiment_linear_regression(
-			sentiment_negative_total
-		)
-
-		sentiment_positive_growth_total = sentiment_linear_regression(
-			sentiment_positive_total
-		)
-
-		progress.update_status(
-			'sentiment_analyst_agent', slug, 'social_volume_analysing'
-		)
-		social_volume_total_change_7d = get_social_volume_total_change_7d(
-			slug,
-			end_date=str(end_date),
-			start_date=start_date,
-		)
-
-		social_volume_total_change_30d = get_social_volume_total_change_30d(
-			slug,
-			end_date=str(end_date),
-			start_date=start_date,
-		)
-
-		social_volume_total_change_1d = get_social_volume_total_change_1d(
-			slug,
-			end_date=str(end_date),
-			start_date=start_date,
-		)
-
-		social_volume_total_change_1d = get_social_volume_total(
-			slug,
-			end_date=str(end_date),
-			start_date=start_date,
-		)
-
-		# # 用多个时间窗口（例如 1 日、3 日、7 日）分别计算情绪 neg pos momentum
-		# # 任意两个pos_mom > 0 就认为是正面情绪，否则负面情绪。
-		# # Can be used as an auxiliary sentiment analysis tool，
-		# # calculate also the momentum of this value to show the trend
-		# sentiment_weighted_data = get_sentiment_weighted_total(
-		#     slug = 'social_sentiment_weighted_total' + slug,
-		#     end_date=end_date,
-		#     start_date=start_date,
+		# Only use when the subscribtion include real-time data
+		# _, sentiment_balance_total = get_sentiment_balance_total(
+		# 	slug,
+		# 	end_date=str(end_date),
+		# 	start_date=start_date,
 		# )
-		# # check
-		# # sentiment_weighted_signals = {
-		# #     "signal": "positive",
-		# #     "momentum": sentiment_weighted_data.momentum
-		# # }
-		# # sentiment_weighted_signals = {
-		# #     "signal": "negative",
-		# #     "momentum": sentiment_weighted_data.momentum
-		# # }
-		# # sentiment_weighted_signals = {
-		# #     "signal": "neutral",
-		# #     "momentum": sentiment_weighted_data.momentum
-		# # }
+		# sentiment_balance_signal = analyse_sentiment_balance(sentiment_balance_total)
+
+		# # define > 0. In the past 7 days, more than half > 0 can be considered as positive
+		# _, sentiment_negative_total = get_sentiment_negative_total(
+		# 	slug,
+		# 	end_date=str(end_date),
+		# 	start_date=start_date,
+		# )
+
+		# _, sentiment_positive_total = get_sentiment_positive_total(
+		# 	slug,
+		# 	end_date=str(end_date),
+		# 	start_date=start_date,
+		# )
+
+		# sentiment_negative_growth_signal = sentiment_linear_regression(
+		# 	sentiment_negative_total
+		# )
+
+		# sentiment_positive_growth_total = sentiment_linear_regression(
+		# 	sentiment_positive_total
+		# )
+
+		# progress.update_status(
+		# 	'sentiment_analyst_agent', slug, 'social_volume_analysing'
+		# )
 
 		fear_and_greed_index = get_fear_and_greed_index(target_date=end_date_str)
 		fgic = (fear_and_greed_index.classification,)
