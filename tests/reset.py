@@ -9,6 +9,7 @@ from pathlib import Path
 import json
 
 
+# More sybol slug mapping could be added in the file in the future.
 def load_symbol_slug_mapping_from_file(
 	filepath='base_workflow/data/symbol_slug_mapping/symbol_slug_mapping.json',
 ):

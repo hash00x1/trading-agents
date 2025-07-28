@@ -17,16 +17,6 @@ def get_prices(
 	slug: str, start_date: str, end_date: str, time_interval: str
 ) -> list[Price]:
 	"""Fetch price data from cache or API."""
-	# Check cache first
-	if cached_data := _cache.get_prices(slug):
-		# Filter cached data by date range and convert to Price objects
-		filtered_data = [
-			Price(**price)
-			for price in cached_data
-			if start_date <= price['time'] <= end_date
-		]
-		if filtered_data:
-			return filtered_data
 
 	# If not in cache or no data in range, fetch from API
 	if api_key := os.environ.get('SANPY_APIKEY'):

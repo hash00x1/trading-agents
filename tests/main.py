@@ -14,7 +14,7 @@ from base_workflow.agents import (
 from base_workflow.tools import buy, sell, hold, read_trades
 from langchain_openai import ChatOpenAI
 from base_workflow.graph.state import AgentState
-from .reset import load_symbol_slug_mapping_from_file
+from reset import load_symbol_slug_mapping_from_file
 from base_workflow.utils.progress import progress
 
 import json
@@ -77,7 +77,7 @@ def parse_response(response):
 ##### Run the Crypto Agents Team #####
 def run(
 	slugs: list[str],
-	wallet: list[str],
+	# wallet: list[str],
 	start_date: str,
 	end_date: str,
 	time_interval: str = '4h',
@@ -93,17 +93,19 @@ def run(
 		# read in wallet. one for dollar, one for token.
 		# 因为这里没有限制，暂时先不支持token之间的交互。因为如果一次只处理一个slug的话，比较难进行slug之间的比较。先分开处理。
 		tokens = [
-			'ETH',
 			'BTC',
+			'ETH',
 			'ADA',
 			'SOL',
+			'DOT',
 		]  # bag of tokens -> generate randomly, or predefined.
-		# slugs = ['ethereum', 'bitcoin', 'cardano', 'solana']
+		# slugs = ['ethereum', 'bitcoin', 'cardano', 'solana', "polkadot"]
 		symbol_to_slug = load_symbol_slug_mapping_from_file()
 		slugs = [symbol_to_slug.get(token.upper()) for token in tokens]
 		for slug in slugs:  # invoke for each slug and write to wallet
-			# read in wallet.
-			df = read_trades(slug)
+			df = read_trades(
+				slug
+			)  # read in wallet， read in the last state of the wallet.
 			current_wallet = {
 				'Dollar Balance': df['remaining_dollar'].iloc[0],
 				'Token Balance': df['amount'].iloc[0],
@@ -122,11 +124,7 @@ def run(
 						'end_date': end_date,
 						'time_interval': time_interval,
 					},
-					'metadata': {
-						'show_reasoning': show_reasoning,
-						# "model_name": model_name,
-						# "model_provider": model_provider,
-					},
+					'metadata': {'show_reasoning': show_reasoning},
 				},
 			)
 			return {
@@ -160,8 +158,6 @@ def create_workflow(selected_analysts=None):
 	workflow.add_node(
 		'hedging_tools', hedging_tool_node
 	)  # -> needs error handlng when amount of tokens bough it larger than dollars available
-	# workflow.add_node("conditional_node", conditional_node)
-	# workflow.add_node("write_db", write_to_db)
 
 	# Define the workflow edges of research team
 	workflow.set_entry_point('technical_analyst')
@@ -175,16 +171,6 @@ def create_workflow(selected_analysts=None):
 		'portfolio_manager', 'hedging_tools'
 	)  # <- bound to the portfolio tools (s. langchain documentation tools.bind())
 	workflow.add_edge('hedging_tools', END)
-
-	# workflow.add_edge("portfolio_manager", "conditional_node")
-	# workflow.add_conditional_edges(
-	#     "conditional_node",
-	#     {
-	#         "write_db": "write_db",
-	#         END: END,
-	#     },
-	# )
-	# workflow.add_edge("write_db", END)
 
 	workflow.set_entry_point('start_node')
 	return workflow
@@ -212,7 +198,6 @@ if __name__ == '__main__':
 		start_date=test_state['data']['start_date'],
 		end_date=test_state['data']['end_date'],
 		time_interval=test_state['data']['time_interval'],
-		# portfolio=portfolio,
 		show_reasoning=test_state['metadata'].get('show_reasoning', False),
 	)
 	print(result)  # maybe show resoning
