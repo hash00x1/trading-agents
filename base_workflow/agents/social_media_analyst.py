@@ -124,12 +124,12 @@ def social_media_analyst(state: AgentState):
 			'classification': fgic,
 			'fear and greed index': fgi,
 		}
-		social_media_sentiment_data[slug] = {
-			'sentiment_balance_signal': sentiment_balance_signal,
-			'sentiment_negative_growth_signal': sentiment_negative_growth_signal,
-			'sentiment_positive_growth_total': sentiment_positive_growth_total,
-			'fear_and_greed_signals': fear_and_greed_signals,
-		}
+		# social_media_sentiment_data[slug] = {
+		# 	'sentiment_balance_signal': sentiment_balance_signal,
+		# 	'sentiment_negative_growth_signal': sentiment_negative_growth_signal,
+		# 	'sentiment_positive_growth_total': sentiment_positive_growth_total,
+		# 	'fear_and_greed_signals': fear_and_greed_signals,
+		# }
 
 		progress.update_status(
 			'social_media_analyst', slug, 'Summarizing and generating report'

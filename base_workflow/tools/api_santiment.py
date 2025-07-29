@@ -3,19 +3,12 @@ import pandas as pd
 import requests
 from typing import Optional
 from typing import Tuple
-
-
-from base_workflow.data.cache import get_cache
 from base_workflow.data.models import (
 	SocialSentimentScoreValue,
 	SocialVolumeValue,
 	SocialVolumeChange,
 )
 from base_workflow.data.models import FearGreedIndex
-
-
-# Global cache instance
-_cache = get_cache()
 
 import san
 
