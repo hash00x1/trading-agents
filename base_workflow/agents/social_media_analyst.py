@@ -11,9 +11,10 @@ from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 from scipy.stats import linregress
-
+from langchain.agents import initialize_agent, AgentType
 from base_workflow.tools import (
 	get_fear_and_greed_index,
+	analyze_social_trends_openai,
 )
 
 
@@ -57,197 +58,152 @@ def social_media_analyst(state: AgentState):
 	"""Analyzes sentiment signals and generates trading signals for multiple slugs."""
 	"""The initiative lies with the sentiment analyst, 
     who decides to generate reports and gives the final trading signals."""
-	# data = state.get("data", {})
-	# end_date = data.get("end_date")
-	# tickers = data.get("tickers")
-	# slugs = ["bitcoin" ] # later add this to the main whole slug name used in santiment API
-	# end_date = "2025-05-08"
-	# end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-	# start_dt = end_dt - timedelta(weeks=2)
-	# start_date = start_dt.date().isoformat()
-	# Change the start_data to be two weeks before the end_date
+	social_media_sentiment_analysis = {}
 	data = state.get('data', {})
 	end_date_str = data.get('end_date')
 	end_date = datetime.strptime(str(end_date_str), '%Y-%m-%d')
 	start_date = end_date - timedelta(weeks=2)
 	start_date = start_date.strftime('%Y-%m-%d')
 
-	slugs = data.get('slugs', [])
+	slug = data.get('slugs', [])
 	llm = ChatOpenAI(model='gpt-4o-mini')
+	sentiment_tools = [
+		get_fear_and_greed_index,
+		analyze_social_trends_openai,
+	]
 
-	# Initialize sentiment analysis for each slug
-	social_media_sentiment_data = {}
-	social_media_sentiment_analysis = {}
+	## Only use when the subscribtion include real-time data
+	# _, sentiment_balance_total = get_sentiment_balance_total(
+	# 	slug,
+	# 	end_date=str(end_date),
+	# 	start_date=start_date,
+	# )
+	# sentiment_balance_signal = analyse_sentiment_balance(sentiment_balance_total)
 
-	for slug in slugs:
-		progress.update_status(
-			'social_media_analyst', slug, 'Collecting sentiment-related data...'
-		)
+	# # define > 0. In the past 7 days, more than half > 0 can be considered as positive
+	# _, sentiment_negative_total = get_sentiment_negative_total(
+	# 	slug,
+	# 	end_date=str(end_date),
+	# 	start_date=start_date,
+	# )
 
-		# Only use when the subscribtion include real-time data
-		# _, sentiment_balance_total = get_sentiment_balance_total(
-		# 	slug,
-		# 	end_date=str(end_date),
-		# 	start_date=start_date,
-		# )
-		# sentiment_balance_signal = analyse_sentiment_balance(sentiment_balance_total)
+	# _, sentiment_positive_total = get_sentiment_positive_total(
+	# 	slug,
+	# 	end_date=str(end_date),
+	# 	start_date=start_date,
+	# )
 
-		# # define > 0. In the past 7 days, more than half > 0 can be considered as positive
-		# _, sentiment_negative_total = get_sentiment_negative_total(
-		# 	slug,
-		# 	end_date=str(end_date),
-		# 	start_date=start_date,
-		# )
+	# sentiment_negative_growth_signal = sentiment_linear_regression(
+	# 	sentiment_negative_total
+	# )
 
-		# _, sentiment_positive_total = get_sentiment_positive_total(
-		# 	slug,
-		# 	end_date=str(end_date),
-		# 	start_date=start_date,
-		# )
+	# sentiment_positive_growth_total = sentiment_linear_regression(
+	# 	sentiment_positive_total
+	# )
 
-		# sentiment_negative_growth_signal = sentiment_linear_regression(
-		# 	sentiment_negative_total
-		# )
+	# progress.update_status(
+	# 	'sentiment_analyst_agent', slug, 'social_volume_analysing'
+	# )
 
-		# sentiment_positive_growth_total = sentiment_linear_regression(
-		# 	sentiment_positive_total
-		# )
+	progress.update_status(
+		'social_media_analyst', slug, 'Summarizing and generating report'
+	)
+	# define the social media analyst
+	social_media_analyst_system_message = """
+	You are a crypto social_media_analyst, 
+	For your reference, the current date is {date}, we are looking at {crypto}.
 
-		# progress.update_status(
-		# 	'sentiment_analyst_agent', slug, 'social_volume_analysing'
-		# )
+	Your main task:
+	- Write a report
+	- Give trading signal
+	- Give confidence level
 
-		fear_and_greed_index = get_fear_and_greed_index(target_date=end_date_str)
-		fgic = (fear_and_greed_index.classification,)
-		fgi = fear_and_greed_index.value
-		fear_and_greed_signals = {
-			'classification': fgic,
-			'fear and greed index': fgi,
-		}
-		# social_media_sentiment_data[slug] = {
-		# 	'sentiment_balance_signal': sentiment_balance_signal,
-		# 	'sentiment_negative_growth_signal': sentiment_negative_growth_signal,
-		# 	'sentiment_positive_growth_total': sentiment_positive_growth_total,
-		# 	'fear_and_greed_signals': fear_and_greed_signals,
-		# }
+	You have access to the following tools:
+	- `get_fear_and_greed_index(target_date: str)`: Retrieves the crypto fear and greed index from Alternative.me for the given date.
+	- `analyze_social_trends_openai(topic: str, curr_date: str)`: Returns a social sentiment and trend analysis based on crypto discussions across major platforms.
 
-		progress.update_status(
-			'social_media_analyst', slug, 'Summarizing and generating report'
-		)
-		# define the social media analyst
-		social_media_analyst_system_message = """
-        You are a crypto social_media_analyst, 
-        For your reference, the current date is {date}, we are looking at {cryptos}.
+	You must use these tools to enrich your sentiment analysis and trading decision.
 
-        Your main task:
-        - Write a report
-        - Give trading signal
-        - GIve confidence level
+	Your output must consist of three parts:
 
-        You analysis is based on this data: {social_media_sentiment_data}
-        - Sentiment analysis signals:
-            - Guided Line: Sentiment is analyzed using three key signals to assess both current attitude and the growth of positive and negative sentiment over time.
-                - sentiment_balance_signal: Suggests the overall trendy attitude at the moment. 
-                    - positive → the majority of sentiment signals are currently positive
-                    - negative → the majority of sentiment signals are currently negative
-                    - neutral → no clear dominant sentiment
-                - sentiment_negative_growth_signal: Describes the growth trend of negative sentiment over time.
-                    - positive → negative sentiment is decreasing
-                    - negative → negative sentiment is increasing
-                    - slope suggests the decrease and increase speed
-                    - The p-value reflects the statistical significance of the trend; low p-values (typically < 0.05) indicate a reliable trend.
-                - sentiment_positive_growth_total: Describes the growth trend of positive sentiment over time.
-                    - positive → positive sentiment is increasing
-                    - negative → positive sentiment is decreasing
-                    - The p-value reflects the statistical significance of the trend; low p-values (typically < 0.05) indicate a reliable trend.
-                    - slope suggests the decrease and increase speed
+	---
 
+	### Part 1: **Social Media Sentiment Report**
+	- A structured report summarizing the news and trends.
+	- Evaluation of news credibility and timeliness.
+	- Assessment of the likely market impact.
+	- Discussion of how crypto markets have typically responded to similar news in the past.
 
-        - Fear and greed index:
-            - Guided Line: The crypto market is highly emotional: prices rising trigger FOMO (“fear of missing out”), falling prices often cause panic-selling.
-                - Extreme Fear (0–24) → investors are overly pessimistic → potential buying opportunity 
-                - Extreme Greed (75–100) → investors are overly optimistic → risk of correction; consider selling or waiting 
-                - Embrace the contrarian approach: “Be fearful when others are greedy, greedy when others are fearful.”
+	---
 
-        Your output must consist of three parts:
+	### Part 2: **Trading Signal**
+	- Based on the report above, provide a clear trading signal.
+	- The format must be: `Trading Signal: **Buy** / **Hold** / **Sell**`
+	- Please return only the signal, no explanation.
 
-        ---
+	---
 
-        ### Part 1: **Social Media Sentiment Report**
-        - A structured report summarizing the news and trends.
-        - Evaluation of news credibility and timeliness.
-        - Assessment of the likely market impact.
-        - Discussion of how crypto markets have typically responded to similar news in the past.
+	### Part 3: **Confidence Level** 
+	- Provide a confidence level for your signal as a float number.
+	- The format must be: `Confidence Level: <float number>`
+	- This number represents how confident you are in your signal, where:
+		- 1 indicates extremely positive sentiment
+		- 0.5 to 0.9 indicates positive sentiment
+		- 0.1 to 0.4 indicates slightly positive sentiment 
+		- 0 indicates neutral sentiment 
+		- -0.1 to -0.4 indicates slightly negative sentiment
+		- -0.5 to -0.9 indicates negative sentiment
+		- -1 indicates extremely negative sentiment
+	- Please return only the float number, no explanation.
 
-        ---
+	---
+	""".format(
+		date=end_date,
+		crypto=slug,
+	)
+	social_media_agent = initialize_agent(
+		tools=sentiment_tools,
+		llm=llm,
+		agent=AgentType.OPENAI_FUNCTIONS,
+		verbose=True,
+	)
+	# Just invoke the message is enough here.
+	content = social_media_agent.run(social_media_analyst_system_message)
 
-        ### Part 2: **Trading Signal**
-        - Based on the report above, provide a clear trading signal.
-        - The format must be: `Trading Signal: **Buy** / **Hold** / **Sell**`
-        - Please return only the signal, no explanation.
+	# Extract Social Media Sentiment Report
+	part1_match = re.search(
+		r'### Part 1:\s+\*\*Social Media\s+Sentiment\s+Report\*\*\s*\n+(.*?)(?=\n+---\n+\n+### Part 2:)',
+		content,
+		re.DOTALL,
+	)
+	social_media_report = part1_match.group(1).strip() if part1_match else None
+	# print(news_report)
 
-        ---
+	# Extract Trading Signal
+	part2_match = re.search(
+		r'### Part 2: \*\*Trading Signal\*\*.*?Trading Signal: \*\*(Buy|Hold|Sell)\*\*',
+		content,
+		re.DOTALL,
+	)
+	trading_signal = part2_match.group(1) if part2_match else None
+	# print(trading_signal)
 
-        ### Part 3: **Confidence Level** 
-        - Provide a confidence level for your signal as a float number.
-        - The format must be: `Confidence Level: <float number>`
-        - This number represents how confident you are in your signal, where:
-            - 1 indicates extremely positive sentiment
-            - 0.5 to 0.9 indicates positive sentiment
-            - 0.1 to 0.4 indicates slightly positive sentiment 
-            - 0 indicates neutral sentiment 
-            - -0.1 to -0.4 indicates slightly negative sentiment
-            - -0.5 to -0.9 indicates negative sentiment
-            - -1 indicates extremely negative sentiment
-        - Please return only the float number, no explanation.
+	# Extract Confidence Level
+	part3_match = re.search(
+		r'### Part 3: \*\*Confidence Level\*\*.*?Confidence Level: ([\-\d\.]+)',
+		content,
+		re.DOTALL,
+	)
+	confidence_level = float(part3_match.group(1)) if part3_match else None
+	# print(confidence_level)
 
-        ---
-        """.format(
-			date=end_date,
-			cryptos=slug,
-			social_media_sentiment_data=social_media_sentiment_data[slug],
-		)
+	social_media_sentiment_analysis = {
+		'signal': trading_signal,
+		'confidence': confidence_level,
+		'report': social_media_report,
+	}
 
-		# Just invoke the message is enough here.
-		analyst_message = llm.invoke(
-			[HumanMessage(content=social_media_analyst_system_message)]
-		)
-		content = str(analyst_message.content)
-
-		# Extract Social Media Sentiment Report
-		part1_match = re.search(
-			r'### Part 1:\s+\*\*Social Media\s+Sentiment\s+Report\*\*\s*\n+(.*?)(?=\n+---\n+\n+### Part 2:)',
-			content,
-			re.DOTALL,
-		)
-		social_media_report = part1_match.group(1).strip() if part1_match else None
-		# print(news_report)
-
-		# Extract Trading Signal
-		part2_match = re.search(
-			r'### Part 2: \*\*Trading Signal\*\*.*?Trading Signal: \*\*(Buy|Hold|Sell)\*\*',
-			content,
-			re.DOTALL,
-		)
-		trading_signal = part2_match.group(1) if part2_match else None
-		# print(trading_signal)
-
-		# Extract Confidence Level
-		part3_match = re.search(
-			r'### Part 3: \*\*Confidence Level\*\*.*?Confidence Level: ([\-\d\.]+)',
-			content,
-			re.DOTALL,
-		)
-		confidence_level = float(part3_match.group(1)) if part3_match else None
-		# print(confidence_level)
-
-		social_media_sentiment_analysis[slug] = {
-			'signal': trading_signal,
-			'confidence': confidence_level,
-			'report': social_media_report,
-		}
-
-		progress.update_status('social_media_analyst', slug, 'Done')
+	progress.update_status('social_media_analyst', slug, 'Done')
 
 	# Create the technical analyst message
 	message = HumanMessage(
@@ -280,11 +236,9 @@ def analyse_sentiment_balance(df: pd.DataFrame):
 	"""
 
 	bars_2d = 3 * 6
-	df['ema_3'] = (
-		df['value'].ewm(span=bars_2d).mean()
-	)  # 2 days EMA to check if possitive
+	df['ema_3'] = df['value'].ewm(span=bars_2d).mean()
 	recent = df['ema_3'].tail(bars_2d)
-	# 统计正向情绪 bar 的数量
+
 	positive_count = (recent > 0).sum()
 	if positive_count > bars_2d / 2:
 		sentiment = 'positive'
@@ -372,7 +326,7 @@ if __name__ == '__main__':
 			'end_date': '2024-08-08',
 			'time_interval': '4h',
 		},
-		'metadata': {'request_id': 'test-123', 'timestamp': '2025-07-02T12:00:00Z'},
+		'metadata': {'request_id': 'test-123', 'timestamp': '2025-07-29T12:00:00Z'},
 	}
 
 	final_state = research_graph.invoke(initial_state)

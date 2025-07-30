@@ -1,13 +1,17 @@
 from langchain_core.messages import HumanMessage
 from base_workflow.graph.state import AgentState
 from base_workflow.utils.progress import progress
-from langchain_openai import ChatOpenAI
+from langchain_community.chat_models import ChatOpenAI
 import json
 import re
 from langgraph.graph import StateGraph
 from datetime import datetime, timedelta
-
-from base_workflow.tools import get_daily_active_addresses
+from base_workflow.tools import (
+	get_daily_active_addresses,
+	analyse_daa_trend,
+	get_on_chain_openai,
+)
+from langchain.agents import initialize_agent, AgentType
 
 #### On-Chain Data Analyst Agent #####
 # Book: do Fundamentals Drive Cryptocurrency Prices?
@@ -29,122 +33,126 @@ def on_chain_analyst(state: AgentState):
 	start_date = start_date.strftime('%Y-%m-%d')
 
 	slugs = data.get('slugs', [])
+	slug = slugs[0]
 	llm = ChatOpenAI(model='gpt-4o-mini')
-	interval = data['time_interval']
-	on_chain_data = {}
 	on_chain_analysis = {}
 
-	for slug in slugs:
-		progress.update_status('on_chain_analyst', slug, 'Fetching Network metrics')
+	progress.update_status('on_chain_analyst', slug, 'Fetching Network metrics')
 
-		# 1.  Network Activity : 'daily_active_address', transation volume
+	# 1.  Network Activity : 'daily_active_address', transation volume
 
-		_, daily_active_addresses = get_daily_active_addresses(
-			slug, end_date=str(end_date), start_date=start_date
-		)
-		daily_active_addresses_signal = analyse_daa_trend(daily_active_addresses)
-		on_chain_data[slug] = {
-			'daily_active_addresses_signal': daily_active_addresses_signal,
-		}
+	_, daily_active_addresses = get_daily_active_addresses(
+		slug, end_date=str(end_date), start_date=start_date
+	)
+	daily_active_addresses_signal = analyse_daa_trend(daily_active_addresses)
+	daa_text = render_daa_trend_for_prompt(daily_active_addresses_signal)
 
-		# 'transaction_volume_change_1d', 'transaction_volume_change_30d', 'transaction_volume_change_7d', 'transaction_volume_profit_loss_ratio', 'transaction_volume'
+	# 'transaction_volume_change_1d', 'transaction_volume_change_30d', 'transaction_volume_change_7d', 'transaction_volume_profit_loss_ratio', 'transaction_volume'
 
-		# 2. Market Sentiment: Whale analysis
-		progress.update_status('on_chain_analyst', slug, 'Analysing numerical data.')
-		on_chain_analyst_system_message = """
-        You are an on chain data analyst, 
-        You play as analyst assistant in a multi-agent system, focused on gathering and analysing on chain data for cryptos.
-		
-        For your reference, the current date is {date}, we are looking at {cryptos}.
+	# 2. Market Sentiment: Whale analysis
+	progress.update_status('on_chain_analyst', slug, 'Analysing numerical data.')
+	on_chain_analyst_system_message = """
+	You are an on chain data analyst, 
+	You play as analyst assistant in a multi-agent system, focused on gathering and analysing on chain data for cryptos.
 
-        Your main task:
-        - Your role is to analyze, and summarize on-chain activity for the given cryptocurrencies.
-        - Provide accurate, reliable, and actionable insights that support trading decisions and write into a report.
+	For your reference, the current date is {date}, we are looking at {crypto}.
 
-        You analysis is based on this data: {on_chain_data_signal_set}
+	Your main task:
+	- Your role is to analyze, and summarize on-chain activity for the given cryptocurrencies.
+	- Provide accurate, reliable, and actionable insights that support trading decisions and write into a report.
 
-        - DAA (Daily Active Addresses) Analysis:
-            - Use short-term EMA to classify DAA trend (upward/downward).
-            - Apply MACD crossover to detect momentum shifts.
-            - Compute slope to measure trend strength.
+	You have access to the tool: 
+	{daily_active_addresses_signal}
 
-        Your output must consist of three parts:
+	**get_on_chain_openai({crypto}, {curr})**  
+	- Searches external sources (Whale Alert, Santiment, CoinDesk, Twitter/X) for whale-related 
+	activity in the last 7 days.
+	- Returns structured findings (date, source, summary, impact).
 
-        ---
+	Your output must consist of three parts:
 
-        ### Part 1: **News Sentiment Report**
-        - A structured summary of:
-            - Key on-chain metrics and their recent changes
-            - Interpretation of patterns (e.g., accumulation, distribution, spikes)
-            - Potential implications for short-term market movement
+	---
 
-        ---
+	### Part 1: **On-chain Report**
+	- A structured summary of:
+	- Key on-chain metrics and their recent changes
+	- Interpretation of patterns (e.g., accumulation, distribution, spikes)
+	- Potential implications for short-term market movement
 
-        ### Part 2: **Trading Signal**
-        - Based on your on-chain analysis, provide a clear trading recommendation:
-            - Format: `Trading Signal: **Buy** / **Hold** / **Sell**`
-            - No explanation should follow—just the signal.
+	---
 
-        ---
+	### Part 2: **Trading Signal**
+	- Based on your on-chain analysis, provide a clear trading recommendation:
+	- Format: `Trading Signal: **Buy** / **Hold** / **Sell**`
+	- No explanation should follow—just the signal.
 
-        ### Part 3: **Confidence Level** 
-        - Provide a confidence level for your signal as a float number.
-        - The format must be: `Confidence Level: <float number>`
-        - This number represents how confident you are in your signal, where:
-            - 1 indicates extremely positive sentiment
-            - 0.5 to 0.9 indicates positive sentiment
-            - 0.1 to 0.4 indicates slightly positive sentiment 
-            - 0 indicates neutral sentiment 
-            - -0.1 to -0.4 indicates slightly negative sentiment
-            - -0.5 to -0.9 indicates negative sentiment
-            - -1 indicates extremely negative sentiment
-        - Please return only the float number, no explanation.
+	---
 
-        ---
-        Keep your analysis concise, data-driven, and focused on actionable metrics. 
-        Do not include any unrelated commentary or sections.
-        """.format(date=end_date, cryptos=slug, on_chain_data_signal_set=on_chain_data)
+	### Part 3: **Confidence Level** 
+	- Provide a confidence level for your signal as a float number.
+	- The format must be: `Confidence Level: <float number>`
+	- This number represents how confident you are in your signal, where:
+	- 1 indicates extremely positive sentiment
+	- 0.5 to 0.9 indicates positive sentiment
+	- 0.1 to 0.4 indicates slightly positive sentiment 
+	- 0 indicates neutral sentiment 
+	- -0.1 to -0.4 indicates slightly negative sentiment
+	- -0.5 to -0.9 indicates negative sentiment
+	- -1 indicates extremely negative sentiment
+	- Please return only the float number, no explanation.
 
-		# Just invoke the message is enough here.
-		analyst_message = llm.invoke(
-			[HumanMessage(content=on_chain_analyst_system_message)]
-		)
-		content = str(analyst_message.content)
-		print(content)
+	---
+	Keep your analysis concise, data-driven, and focused on actionable metrics. 
+	Do not include any unrelated commentary or sections.
+	""".format(
+		date=end_date,
+		crypto=slug,
+		curr=end_date,
+		daily_active_addresses_signal=daa_text,
+	)
 
-		# Extract Social Media Sentiment Report
-		part1_match = re.search(
-			r'### Part 1:\s+\*\*Social Media\s+Sentiment\s+Report\*\*\s*\n+(.*?)(?=\n+---\n+\n+### Part 2:)',
-			content,
-			re.DOTALL,
-		)
-		on_chain_report = part1_match.group(1).strip() if part1_match else None
-		# print(news_report)
+	on_chain_agent = initialize_agent(
+		tools=[get_on_chain_openai],
+		llm=llm,
+		agent=AgentType.OPENAI_FUNCTIONS,
+		verbose=True,
+	)
+	# Just invoke the message is enough here.
+	content = on_chain_agent.run(on_chain_analyst_system_message)
 
-		# Extract Trading Signal
-		part2_match = re.search(
-			r'### Part 2: \*\*Trading Signal\*\*.*?Trading Signal: \*\*(Buy|Hold|Sell)\*\*',
-			content,
-			re.DOTALL,
-		)
-		trading_signal = part2_match.group(1) if part2_match else None
-		# print(trading_signal)
+	# Extract Social Media Sentiment Report
+	part1_match = re.search(
+		r'### Part 1:\s+\*\*On-?chain\s+Report\*\*\s*\n+(.*?)(?=\n+---\n+\n+### Part 2:)',
+		content,
+		re.DOTALL,
+	)
+	on_chain_report = part1_match.group(1).strip() if part1_match else None
+	# print(news_report)
 
-		# Extract Confidence Level
-		part3_match = re.search(
-			r'### Part 3: \*\*Confidence Level\*\*.*?Confidence Level: ([\-\d\.]+)',
-			content,
-			re.DOTALL,
-		)
-		confidence_level = float(part3_match.group(1)) if part3_match else None
-		# print(confidence_level)
+	# Extract Trading Signal
+	part2_match = re.search(
+		r'### Part 2: \*\*Trading Signal\*\*.*?Trading Signal: \*\*(Buy|Hold|Sell)\*\*',
+		content,
+		re.DOTALL,
+	)
+	trading_signal = part2_match.group(1) if part2_match else None
+	# print(trading_signal)
 
-		on_chain_analysis[slug] = {
-			'signal': trading_signal,
-			'confidence': confidence_level,
-			'report': on_chain_report,
-		}
-		progress.update_status('on_chain_analyst', slug, 'Done')
+	# Extract Confidence Level
+	part3_match = re.search(
+		r'### Part 3: \*\*Confidence Level\*\*.*?Confidence Level: ([\-\d\.]+)',
+		content,
+		re.DOTALL,
+	)
+	confidence_level = float(part3_match.group(1)) if part3_match else None
+	# print(confidence_level)
+
+	on_chain_analysis[slug] = {
+		'signal': trading_signal,
+		'confidence': confidence_level,
+		'report': on_chain_report,
+	}
+	progress.update_status('on_chain_analyst', slug, 'Done')
 
 	message = HumanMessage(
 		content=json.dumps(on_chain_analysis),
@@ -155,6 +163,29 @@ def on_chain_analyst(state: AgentState):
 		'messages': [message],
 		'data': data,
 	}
+
+
+def render_daa_trend_for_prompt(daa: dict) -> str:
+	"""将 analyse_daa_trend 的返回值转成简洁的 key=value 文本。"""
+	m = daa.get('metrics', {}) if isinstance(daa, dict) else {}
+
+	def _fmt(x):
+		# 简单格式化：保留 6 位有效数字；None 显示为 'null'
+		if x is None:
+			return 'null'
+		if isinstance(x, float):
+			return f'{x:.6g}'
+		return str(x)
+
+	lines = [
+		f'trend={_fmt(daa.get("trend"))}',
+		f'macd_signal={_fmt(daa.get("macd_signal"))}',
+		f'ema_slope={_fmt(m.get("ema_slope"))}',
+		f'macd_current={_fmt(m.get("macd_current"))}',
+		f'macd_signal_current={_fmt(m.get("macd_signal_current"))}',
+		f'macd_hist_current={_fmt(m.get("macd_hist_current"))}',
+	]
+	return '\n'.join(lines)
 
 
 if __name__ == '__main__':

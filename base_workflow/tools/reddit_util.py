@@ -4,6 +4,7 @@ import re
 from datetime import datetime
 from typing import Annotated, List
 
+
 data_path = 'base_workflow/data/reddit_data'
 category = 'crypto_news'
 
@@ -86,3 +87,33 @@ def fetch_top_from_category(
 		all_posts.extend(posts_in_file[:limit_per_subreddit])
 
 	return all_posts
+
+
+if __name__ == '__main__':
+	data_path = 'base_workflow/data/reddit_data'
+	category = 'crypto_news'
+	date = '2025-07-25'  # 修改为你实际有数据的日期
+	max_limit = 10
+	keywords = ['bitcoin', 'ethereum', 'crypto', 'blockchain']  # 可选关键词过滤
+
+	try:
+		top_posts = fetch_top_from_category(
+			category=category,
+			date=date,
+			max_limit=max_limit,
+			keywords=keywords,
+			data_path=data_path,
+		)
+
+		print(f'\nFetched {len(top_posts)} posts for date {date}:\n')
+		for i, post in enumerate(top_posts, start=1):
+			print(f'--- Post #{i} ---')
+			print(f'Title: {post["title"]}')
+			print(f'Upvotes: {post["upvotes"]}')
+			print(f'URL: {post["url"]}')
+			print(f'Date: {post["posted_date"]}')
+			print(f'Content: {post["content"][:150]}...')  # 限制预览长度
+			print()
+
+	except Exception as e:
+		print(f'Error: {e}')

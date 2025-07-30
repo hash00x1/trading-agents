@@ -4,7 +4,7 @@ from typing import Optional
 from base_workflow.data.models import FearGreedIndex
 import requests
 from langchain.agents import initialize_agent, AgentType
-from langchain.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 import pandas as pd
 
 
@@ -25,7 +25,7 @@ def analyze_social_trends_openai(
 					{
 						'type': 'input_text',
 						'text': (
-							f'Please act as a social media analyst.\n\n'
+							f'Please act as a cryptos social media analyst.\n\n'
 							f'Analyze the discussions, sentiment, and trend patterns related to "{topic}" '
 							f'on platforms like Twitter (X), Reddit, Discord, and Telegram over the 7 days before {curr_date}.\n'
 							f'Please provide:\n'
@@ -62,8 +62,21 @@ def get_fear_and_greed_index(target_date: Optional[str] = None) -> FearGreedInde
 	"""
 	Fetch the Fear and Greed Index from the Alternative.me API.
 
+	This tool measures the current sentiment of the crypto market to help guide investment decisions.
+	The index ranges from 0 to 100 and reflects how fearful or greedy investors are on a given day.
+
+	Interpretation of index values:
+		- 0–24 (Extreme Fear): Investors are overly pessimistic — potential buying opportunity.
+		- 25–49 (Fear): Market sentiment is cautious.
+		- 50–54 (Neutral): Balanced market sentiment.
+		- 55–74 (Greed): Optimistic sentiment — monitor for overvaluation.
+		- 75–100 (Extreme Greed): Investors are overly optimistic — potential risk of correction.
+
+	Args:
+		target_date (Optional[str]): Date in YYYY-MM-DD format. Defaults to the latest available data if not specified.
+
 	Returns:
-	    FearGreedIndex: A structured object containing the index value, classification.
+		FearGreedIndex: A structured object containing the index value and its corresponding classification.
 	"""
 	try:
 		# If target_date is provided, format it to the required date format
@@ -101,39 +114,16 @@ def get_fear_and_greed_index(target_date: Optional[str] = None) -> FearGreedInde
 		)  # set to neutral if error occurs
 
 
-# langchain_tools = [
-# 	Tool(
-# 		name='SocialMediaTrendAnalyzer',
-# 		func=lambda input_str: analyze_social_trends_openai(
-# 			topic=input_str.split(',')[0].strip(),
-# 			curr_date=input_str.split(',')[1].strip(),
-# 		),
-# 		description=(
-# 			'Analyzes social media discussions, trends, and sentiment for a given topic.\n'
-# 			"Input: 'topic, current_date' (e.g., 'Ethereum, 2025-07-28')."
-# 		),
-# 	),
-# ]
-
-
 if __name__ == '__main__':
-	# current_date = '2025-07-20'
-
-	# whale_news = get_on_chain_openai('BTC', current_date)
-
-	# print('Whale Activity News:\n', whale_news)
-
 	llm = ChatOpenAI(model='gpt-4', temperature=0)
 
 	agent = initialize_agent(
 		tools=[get_fear_and_greed_index, analyze_social_trends_openai],
 		llm=llm,
 		agent=AgentType.OPENAI_FUNCTIONS,
-		verbose=True,
+		verbose=False,
 	)
 
-	result = agent.run(
-		'can you analyze the social media trends for Bitcoin on 2025-07-20?'
+	result = agent.invoke(
+		{'input': 'can you analyze the social media trends for Bitcoin on 2025-07-20?'}
 	)
-
-	print('\nAgent 输出结果：\n', result)

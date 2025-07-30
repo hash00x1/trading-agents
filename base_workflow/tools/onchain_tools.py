@@ -14,29 +14,64 @@ from langchain.agents import initialize_agent, AgentType
 from langchain.chat_models import ChatOpenAI
 
 
+def _date_only(s: str) -> str:
+	"""Return YYYY-MM-DD part only."""
+	return str(s).split('T')[0].split(' ')[0]
+
+
+def _build_system_text(slug: str, start_date: str, end_date: str) -> str:
+	return (
+		'ROLE: You are an on-chain analyst.\n'
+		'OBJECTIVE: Report whale-related on-chain activity for the specified asset and date window ONLY.\n'
+		f'ASSET: {slug}\n'
+		f'DATE_WINDOW: from {start_date} to {end_date} (inclusive, format YYYY-MM-DD). Do not use data outside this window.\n\n'
+		'DATA PRIORITY:\n'
+		'1) Primary: on-chain data/providers (e.g., Whale Alert streams/alerts, Santiment metrics, Glassnode, IntoTheBlock).\n'
+		'2) Secondary (context only): reputable news (CoinDesk, The Block, etc.). News must NOT replace on-chain evidence.\n\n'
+		'STRICT RULES:\n'
+		'- Use only the specified asset; discard other tickers.\n'
+		'- Discard sources without clear dates or outside the date window.\n'
+		'- Do NOT output price/market summary or live quotes (no price tools available here).\n'
+		"- Do NOT fabricate numbers. If no credible on-chain evidence is found for the window, return status='NO_DATA'.\n"
+		'- Include citations with URL and published date for every numeric/strong claim.\n\n'
+		'- Prefer primary on-chain sources (Whale Alert, Santiment, Glassnode). Use news only if they directly cite on-chain metrics within the date window.\n\n'
+		'OUTPUT: Return ONLY a JSON object matching the schema described below. No extra text.\n'
+		'{\n'
+		'  "status": "OK" | "NO_DATA",\n'
+		'  "timeframe": {"start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"},\n'
+		'  "asset": "string",\n'
+		'  "signals": {\n'
+		'    "large_tx_counts": {"gt_100k_usd": "number|null", "gt_1m_usd": "number|null"},\n'
+		'    "whale_net_position_change": "number|null",\n'
+		'    "exchange_netflow_whales": "number|null",\n'
+		'    "notes": "string"\n'
+		'  },\n'
+		'  "trading_stance": {"signal": "Buy|Neutral|Sell", "confidence": "number in [0,1]"},\n'
+		'  "citations": [ {"url":"string","title":"string","published_date":"YYYY-MM-DD"} ]\n'
+		'}\n'
+	)
+
+
 @tool
-def get_on_chain_openai(token: str, curr_date: str):
+def get_on_chain_openai(slug: str, curr_date: str):
 	"""
 	Search for on-chain whale-related activity about a token in the last 7 days.
 	"""
 	client = OpenAI()
-	curr_dt = datetime.strptime(curr_date, '%Y-%m-%d')
-	start_date = (curr_dt - timedelta(days=7)).strftime('%Y-%m-%d')
+	end_date = _date_only(curr_date)
+	curr_dt = datetime.strptime(end_date, '%Y-%m-%d')
+	start_date = (curr_dt - timedelta(days=7)).date().isoformat()
+	system_text = _build_system_text(slug, start_date, end_date)
 
 	response = client.responses.create(
-		model='gpt-4.1-mini',
+		model='gpt-4.1',
 		input=[
 			{
 				'role': 'system',
 				'content': [
 					{
 						'type': 'input_text',
-						'text': (
-							f'Search for crypto whale-related activity only about {token},'
-							f'between {start_date} and {curr_date}. '
-							f'Focus on large transactions, unusual whale behavior, significant accumulation or dumping. '
-							f'Sources: Whale Alert, Santiment, CoinDesk, The Block, Twitter threads, etc.'
-						),
+						'text': system_text,
 					}
 				],
 			}
@@ -49,23 +84,52 @@ def get_on_chain_openai(token: str, curr_date: str):
 				'search_context_size': 'low',
 			}
 		],
-		temperature=1,
-		max_output_tokens=4096,
+		temperature=0.2,
+		max_output_tokens=512,
 		top_p=1,
 		store=True,
 	)
 	return response.output[1].content[0].text
 
 
+def normalize_values(df: pd.DataFrame, method: str = 'zscore') -> pd.DataFrame:
+	"""
+	Normalize the 'value' column in df.
+
+	method:
+	    - "zscore": standard normalization
+	    - "minmax": scale to [0, 1]
+	    - "base": divide by first value
+
+	Returns:
+	    df with new 'value' column normalized.
+	"""
+	df = df.copy()
+	if 'value' not in df.columns:
+		raise ValueError("DataFrame must contain 'value' column")
+
+	if method == 'zscore':
+		mean = df['value'].mean()
+		std = df['value'].std()
+		df['value'] = (df['value'] - mean) / std
+	elif method == 'minmax':
+		min_val = df['value'].min()
+		max_val = df['value'].max()
+		df['value'] = (df['value'] - min_val) / (max_val - min_val)
+	elif method == 'base':
+		base_val = df['value'].iloc[0]
+		df['value'] = df['value'] / base_val
+	else:
+		raise ValueError(f'Unknown normalization method: {method}')
+
+	return df
+
+
 def get_daily_active_addresses(
 	slug: str, start_date: str, end_date: str
 ) -> Tuple[list[SocialSentimentScoreValue], pd.DataFrame]:
 	"""Fetch Telegram sentiment score from cache or API."""
-	# Check cache first
-	# if cached_data := _cache.get_telegram_sentiment_score():
-	#     return [SocialDominanceValue(**value) for value in cached_data]
 
-	# If not in cache, fetch from API
 	if api_key := os.environ.get('SANPY_APIKEY'):
 		san.ApiConfig.api_key = api_key
 
@@ -110,7 +174,7 @@ def analyse_daa_trend(df: pd.DataFrame):
 			'metrics': {},
 			'explanation': 'DAA data is empty or invalid.',
 		}
-
+	df = normalize_values(df, method='zscore')
 	# Compute short-term EMA
 	bars_2d = 3 * 6  # ~2 days for 8h bars
 	df['ema_short'] = df['value'].ewm(span=bars_2d, adjust=False).mean()
@@ -165,17 +229,6 @@ def analyse_daa_trend(df: pd.DataFrame):
 	}
 
 
-@tool(description='Analyze DAA trend for a crypto token given slug and date range.')
-def get_daa_trend_analysis(slug: str, start_date: str, end_date: str) -> dict:
-	daa_data, df = get_daily_active_addresses(slug, start_date, end_date)
-	analysis = analyse_daa_trend(df)
-	return {
-		'token': slug,
-		'period': {'start': start_date, 'end': end_date},
-		'analysis': analysis,
-	}
-
-
 if __name__ == '__main__':
 	# current_date = '2025-07-20'
 
@@ -192,15 +245,12 @@ if __name__ == '__main__':
 		verbose=True,
 	)
 
-	# ✅ 测试英文 prompt
 	result = agent.run(
-		'Use the get_daa_trend_analysis tool for bitcoin from 2025-07-14 to 2025-07-28.'
+		'Use the get_daa_trend_analysis tool for bitcoin from 2024-02-10 to 2024-02-24.'
 	)
 
-	print('\nAgent 输出结果：\n', result)
 
-
-# # use the below function to analyse only if you have real time subscription to the data.
+# # use the below function to analyse only if you have real time subscription to the santiment data.
 # # transaction_volume_in_profit one month delay
 # def get_transaction_volume_in_profit(
 # 	slug: str, start_date: str, end_date: str
