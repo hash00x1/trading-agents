@@ -14,9 +14,8 @@ from base_workflow.agents import (
 from base_workflow.tools import buy, sell, hold, read_trades
 from langchain_openai import ChatOpenAI
 from base_workflow.graph.state import AgentState
-from reset import load_symbol_slug_mapping_from_file
 from base_workflow.utils.progress import progress
-
+from reset import load_symbol_slug_mapping_from_file
 import json
 
 # Load environment variables from .env file
@@ -38,7 +37,7 @@ def hedging_tool_node(user_input: str) -> str:
 	if not calls:
 		return ai_msg.content
 
-	# assumed only one tool is used, based on the logic now
+	# Only one tool is used, based on the logic now
 	call = calls[0]
 	fn = next(t for t in TOOLS if t.name == call['name'])
 	return fn.invoke(call['args'])
@@ -100,16 +99,16 @@ def run(
 			'DOT',
 		]  # bag of tokens -> generate randomly, or predefined.
 		# slugs = ['ethereum', 'bitcoin', 'cardano', 'solana', "polkadot"]
+
 		symbol_to_slug = load_symbol_slug_mapping_from_file()
-		slugs = [symbol_to_slug.get(token.upper()) for token in tokens]
-		for slug in slugs:  # invoke for each slug and write to wallet
+		token_slug_map = {token: symbol_to_slug.get(token.upper()) for token in tokens}
+		# slugs = [symbol_to_slug.get(token.upper()) for token in tokens]
+		for token, slug in token_slug_map:  # invoke for each slug and write to wallet
 			df = read_trades(
 				slug
 			)  # read in wallet， read in the last state of the wallet.
-			current_wallet = {
-				'Dollar Balance': df['remaining_dollar'].iloc[0],
-				'Token Balance': df['amount'].iloc[0],
-			}
+			dollar_balance = df['remaining_dollar'].iloc[0]
+			token_balance = df['amount'].iloc[0]
 			final_state = agent.invoke(
 				{
 					'messages': [
@@ -118,8 +117,10 @@ def run(
 						)
 					],
 					'data': {
+						'token': token,
 						'slugs': slug,
-						'current_wallet': current_wallet,
+						'dollar balance': dollar_balance,
+						'token balance': token_balance,
 						'start_date': start_date,
 						'end_date': end_date,
 						'time_interval': time_interval,

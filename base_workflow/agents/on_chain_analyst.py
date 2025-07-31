@@ -59,6 +59,7 @@ def on_chain_analyst(state: AgentState):
 
 	Your main task:
 	- Your role is to analyze, and summarize on-chain activity for the given cryptocurrencies.
+	- You MUST include Daily Active Addresses (DAA) signals and other key on-chain metrics (e.g., large transactions, whale net position change, whale-tagged exchange netflows).
 	- Provide accurate, reliable, and actionable insights that support trading decisions and write into a report.
 
 	You have access to the tool: 

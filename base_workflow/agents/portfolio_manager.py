@@ -6,6 +6,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from langgraph.graph import StateGraph
 import re
+from tools import get_real_time_price
 
 
 # You have access to the following tools:
@@ -15,10 +16,17 @@ import re
 # Hold: "" -> defined as return None
 # def Hold:
 #     return None
+# 'dollar balance': dollar_balance,
+# 'token balance': token_balance,
+
+
 def portfolio_manager(state: AgentState):
 	messages = state.get('messages', [])
 	data = state.get('data', {})  # maybe also get price
-	slugs = data.get('slug', [])
+	slug = data.get('slug', [])[0]
+	token = data.get('token', [])[0]
+	dollar_balance = data.get('dollar balance', 0)
+	token_balance = data.get('token balance', 0)
 	llm = ChatOpenAI(model='gpt-4o')
 	decisions = {}
 
@@ -26,10 +34,16 @@ def portfolio_manager(state: AgentState):
 		'portfolio_manager', slug, 'Aggregating multi-agent signals and deciding.'
 	)
 
+	try:  # if not get the newest price use the latest ohlcv price instead.
+		crypto_price = get_real_time_price(token)
+	except Exception:
+		crypto_price = state['data']['close_price']
+
 	analyst_summary_prompt = f"""
 	You are a crypto portfolio manager in a multi-agent system.
 	For the asset **{slug}**, you have received signal reports from different analysts (technical, sentiment, on-chain, research, risk, news, etc.).
-	You currently have **{dollars}** in your wallet, the current market price of **{slug}** is **{price_data}**.
+	You currently have **{dollar_balance}** in your wallet, the correct token balance is **{token_balance}**.
+	the current market price of **{slug}** is **{crypto_price}**.
 	Your task is to synthesize these insights and give ONE final decision, in structured format:
 	---
 	### Final Decision (REQUIRED)
@@ -47,7 +61,12 @@ def portfolio_manager(state: AgentState):
 	Hold: "" -> defined as return None 
 	def Hold:
 		return None
-	"""
+	""".format(
+		slug=slug,
+		dollar_balance=dollar_balance,
+		token_balance=token_balance,
+		crypto_price=crypto_price,
+	)
 	portfolio_decision_agent = create_react_agent(
 		llm, tools=[], state_modifier=analyst_summary_prompt
 	)
@@ -57,20 +76,13 @@ def portfolio_manager(state: AgentState):
 	match_signal = re.search(r'Final Decision: \*\*(Buy|Hold|Sell)\*\*', content)
 	decisions[slug] = {'signal': match_signal.group(1) if match_signal else None}
 	progress.update_status('portfolio_manager', slug, 'Done')
-	# use the left dollar to calculate the amount to buy
+	# Output decision format.
 
 	print(f'{decisions}\n')
-	# slug needto be used later to write into the file.
-	# if decisions[slug]['signal'] == 'Buy':
-	# Calculate the amount to buy based on the current price and available dollars
-	# 	amount = data['dollars'] / price_data
-	# 	decisions[slug]['amount'] = amount
-	# elif decisions[slug]['signal'] == 'Sell':
-	# 	Assume we have a fixed amount to sell, calculate the rest of the dollars we can get from selling
-	# 	decisions[slug]['amount'] = data.get('portfolio', {}).get(slug, 0)
 	return {'final_decisions': decisions}  # final decision only contains the action.
 
 
+# define calculation tool.
 if __name__ == '__main__':
 	llm = ChatOpenAI(model='gpt-4o')
 

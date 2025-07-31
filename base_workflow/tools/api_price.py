@@ -72,15 +72,20 @@ def get_real_time_price(symbol: str, exchange_id: str = 'binance') -> float:
 	    float: Latest traded price, ready for numerical calculations
 	"""
 	exchange_class = getattr(ccxt, exchange_id)
-	exchange = exchange_class()
+	exchange = exchange_class(
+		{
+			'enableRateLimit': True,
+			'timeout': 10000,  # in milliseconds (10 seconds)
+		}
+	)
 
-	ticker = exchange.fetch_ticker(symbol)
+	ticker = exchange.fetch_ticker(f'{symbol}/USDT')
 
 	return float(ticker['last'])
 
 
 if __name__ == '__main__':
-	price = get_real_time_price()
+	price = get_real_time_price('ETH')
 	print(f'当前 ETH/USDT 实时价格：{price} USDT')
 
 # Example usage
