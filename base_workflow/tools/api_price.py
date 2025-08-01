@@ -1,16 +1,11 @@
 import os
 import pandas as pd
 
-from base_workflow.data.cache import get_cache
 from base_workflow.data.models import (
 	Price,
 )
 import san
 import ccxt
-
-
-# Global cache instance
-_cache = get_cache()
 
 
 def get_prices(

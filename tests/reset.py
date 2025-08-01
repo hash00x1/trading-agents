@@ -78,6 +78,14 @@ def log_initial_capital(slug: str, remaining_dollar: float):
 
 
 def main():
+	"""
+	Reset the output folder and log initial capital for each token.
+	Tokens need to be hand written to tokens list.
+	Each token will be given an initial capital of 1,000,000 USD.
+	Together, the total initial capital is 1,000,000 USD * tokens number.
+	"""
+	tokens = ['BTC', 'ETH', 'ADA', 'SOL', 'DOT']
+	initial_capital = 1000000  # average capital per token in USD, total initial capital * tokens number.
 	parser = argparse.ArgumentParser(description='Delete the output folder')
 	parser.add_argument(
 		'--path',
@@ -91,33 +99,22 @@ def main():
 	parser.add_argument(
 		'--capital',
 		type=float,
-		default=3000000,
-		help='Initial capital in USD (default: 3000000)',
-	)
-	parser.add_argument(
-		'--tokens',
-		type=str,
-		default='BTC',
-		help='token for the initial capital (default: USDT)',
+		default=initial_capital,
+		help='Initial capital in USD (default: 1000000)',  # total capital 5000000
 	)
 
 	args = parser.parse_args()
 	reset_output(args.path, args.force)
 	symbol_to_slug = load_symbol_slug_mapping_from_file()
-	slug = symbol_to_slug.get(args.tokens.upper())
-	log_initial_capital(slug, args.capital)
+	for token in tokens:
+		slug = symbol_to_slug.get(token.upper())
+		if slug:
+			log_initial_capital(slug, args.capital)
+		else:
+			print(
+				f"Warning: No slug found for token '{token}'. Skipping initial capital logging."
+			)
 
 
 if __name__ == '__main__':
 	main()
-	tokens = [
-		'ETH',
-		'BTC',
-		'ADA',
-		'SOL',
-	]  # bag of tokens -> generate randomly, or predefined.
-	# slugs = ['ethereum', 'bitcoin', 'cardano', 'solana']
-	symbol_to_slug = load_symbol_slug_mapping_from_file()
-	slugs = [symbol_to_slug.get(token.upper()) for token in tokens]
-	for slug in slugs:
-		print(slug)
