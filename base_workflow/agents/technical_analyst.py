@@ -53,92 +53,91 @@ def technical_analyst(state: AgentState):
 	start_date = data['start_date']
 	end_date = data['end_date']
 	interval = data['time_interval']
-	slugs = data['slugs']
+	slug = str(data.get('slug'))
 
 	# Initialize analysis for each slug
 	technical_analysis = {}
 
-	for slug in slugs:
-		# Get the historical price data
-		prices = get_prices(
-			slug='ohlcv/' + slug,
-			start_date=start_date,
-			end_date=end_date,
-			time_interval=interval,
+	# for slug in slugs:
+	# Get the historical price data
+	prices = get_prices(
+		slug='ohlcv/' + slug,
+		start_date=start_date,
+		end_date=end_date,
+		time_interval=interval,
+	)
+
+	if not prices:
+		progress.update_status(
+			'technical_analyst_agent', slug, 'Failed: No price data found'
 		)
 
-		if not prices:
-			progress.update_status(
-				'technical_analyst_agent', slug, 'Failed: No price data found'
-			)
-			continue
+	# Convert prices to a DataFrame
+	prices_df = prices_to_df(prices)
+	# print (prices_df)
+	if not prices_df.empty:
+		closed_price = prices_df['close'].iloc[-1]
+		state['data']['close_price'] = closed_price
 
-		# Convert prices to a DataFrame
-		prices_df = prices_to_df(prices)
-		# print (prices_df)
-		if not prices_df.empty:
-			closed_price = prices_df['close'].iloc[-1]
-			state['data']['close_price'] = closed_price
+	progress.update_status('technical_analyst', slug, 'Calculating trend signals')
+	trend_signals = calculate_trend_signals(prices_df)
 
-		progress.update_status('technical_analyst', slug, 'Calculating trend signals')
-		trend_signals = calculate_trend_signals(prices_df)
+	progress.update_status('technical_analyst', slug, 'Calculating mean reversion')
+	mean_reversion_signals = calculate_mean_reversion_signals(prices_df)
 
-		progress.update_status('technical_analyst', slug, 'Calculating mean reversion')
-		mean_reversion_signals = calculate_mean_reversion_signals(prices_df)
+	progress.update_status('technical_analyst', slug, 'Calculating momentum')
+	momentum_signals = calculate_momentum_signals(prices_df)
 
-		progress.update_status('technical_analyst', slug, 'Calculating momentum')
-		momentum_signals = calculate_momentum_signals(prices_df)
+	progress.update_status('technical_analyst', slug, 'Analyzing volatility')
+	volatility_signals = calculate_volatility_signals(prices_df)
 
-		progress.update_status('technical_analyst', slug, 'Analyzing volatility')
-		volatility_signals = calculate_volatility_signals(prices_df)
+	# Combine all signals using a weighted ensemble approach
+	strategy_weights = {
+		'trend': 0.30,
+		'mean_reversion': 0.20,
+		'momentum': 0.30,
+		'volatility': 0.20,
+	}
 
-		# Combine all signals using a weighted ensemble approach
-		strategy_weights = {
-			'trend': 0.30,
-			'mean_reversion': 0.20,
-			'momentum': 0.30,
-			'volatility': 0.20,
-		}
+	progress.update_status('technical_analyst', slug, 'Combining signals')
+	combined_signal = weighted_signal_combination(
+		{
+			'trend': trend_signals,
+			'mean_reversion': mean_reversion_signals,
+			'momentum': momentum_signals,
+			'volatility': volatility_signals,
+		},
+		strategy_weights,
+	)
 
-		progress.update_status('technical_analyst', slug, 'Combining signals')
-		combined_signal = weighted_signal_combination(
-			{
-				'trend': trend_signals,
-				'mean_reversion': mean_reversion_signals,
-				'momentum': momentum_signals,
-				'volatility': volatility_signals,
+	# Generate detailed analysis report for this slug
+	technical_analysis[slug] = {
+		'signal': combined_signal['signal'],
+		'confidence': round(combined_signal['confidence'] * 100),
+		'strategy_signals': {
+			'trend_following': {
+				'signal': trend_signals['signal'],
+				'confidence': round(trend_signals['confidence'] * 100),
+				'metrics': normalize_pandas(trend_signals['metrics']),
 			},
-			strategy_weights,
-		)
-
-		# Generate detailed analysis report for this slug
-		technical_analysis[slug] = {
-			'signal': combined_signal['signal'],
-			'confidence': round(combined_signal['confidence'] * 100),
-			'strategy_signals': {
-				'trend_following': {
-					'signal': trend_signals['signal'],
-					'confidence': round(trend_signals['confidence'] * 100),
-					'metrics': normalize_pandas(trend_signals['metrics']),
-				},
-				'mean_reversion': {
-					'signal': mean_reversion_signals['signal'],
-					'confidence': round(mean_reversion_signals['confidence'] * 100),
-					'metrics': normalize_pandas(mean_reversion_signals['metrics']),
-				},
-				'momentum': {
-					'signal': momentum_signals['signal'],
-					'confidence': round(momentum_signals['confidence'] * 100),
-					'metrics': normalize_pandas(momentum_signals['metrics']),
-				},
-				'volatility': {
-					'signal': volatility_signals['signal'],
-					'confidence': round(volatility_signals['confidence'] * 100),
-					'metrics': normalize_pandas(volatility_signals['metrics']),
-				},
+			'mean_reversion': {
+				'signal': mean_reversion_signals['signal'],
+				'confidence': round(mean_reversion_signals['confidence'] * 100),
+				'metrics': normalize_pandas(mean_reversion_signals['metrics']),
 			},
-		}
-		progress.update_status('technical_analyst', slug, 'Done')
+			'momentum': {
+				'signal': momentum_signals['signal'],
+				'confidence': round(momentum_signals['confidence'] * 100),
+				'metrics': normalize_pandas(momentum_signals['metrics']),
+			},
+			'volatility': {
+				'signal': volatility_signals['signal'],
+				'confidence': round(volatility_signals['confidence'] * 100),
+				'metrics': normalize_pandas(volatility_signals['metrics']),
+			},
+		},
+	}
+	progress.update_status('technical_analyst', slug, 'Done')
 
 	# Create the technical analyst message
 	message = HumanMessage(
@@ -526,7 +525,7 @@ if __name__ == '__main__':
 	test_state = AgentState(
 		messages=[],
 		data={
-			'slugs': ['ohlcv/bitcoin'],
+			'slug': 'bitcoin',
 			'start_date': '2024-06-07',
 			'end_date': '2024-08-08',
 			'time_interval': '4h',

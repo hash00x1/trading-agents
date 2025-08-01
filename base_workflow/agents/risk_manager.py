@@ -1,7 +1,10 @@
-from base_workflow.agents.debate_agent import DialogueAgentWithTools, DialogueSimulatorAgent, DialogueAgent
-from typing import List
+from base_workflow.agents.debate_agent import DialogueSimulatorAgent
 from langchain_openai import ChatOpenAI
-from base_workflow.agents import create_aggressive_risk_debator, create_conservative_risk_debator, create_neutral_risk_debator
+from base_workflow.agents import (
+	create_aggressive_risk_debator,
+	create_conservative_risk_debator,
+	create_neutral_risk_debator,
+)
 from base_workflow.graph.state import AgentState
 from langchain.schema import SystemMessage, HumanMessage
 from typing import Any
@@ -9,27 +12,24 @@ from typing import Optional
 import json
 from base_workflow.utils.progress import progress
 
+
 class RiskManager(DialogueSimulatorAgent):
-    def __init__(self, rounds:int, state: Optional[AgentState] = None):
-        self.research_analysis: dict[str, Any] = {} 
-        self.model = ChatOpenAI(model="gpt-4o", temperature=0.7)
+	def __init__(self, rounds: int, state: Optional[AgentState] = None):
+		self.research_analysis: dict[str, Any] = {}
+		self.model = ChatOpenAI(model='gpt-4o', temperature=0.7)
 
-        if state is None:
-            state = AgentState(
-                messages=[],
-                data={},
-                metadata={}
-            )
+		if state is None:
+			state = AgentState(messages=[], data={}, metadata={})
 
-        debator_agents=[
-            create_aggressive_risk_debator(model=self.model), 
-            create_conservative_risk_debator(model=self.model),
-            create_neutral_risk_debator(model=self.model)
-           ]
-        super().__init__(agents=debator_agents, name="Risk Manager", rounds=rounds)
+		debator_agents = [
+			create_aggressive_risk_debator(model=self.model),
+			create_conservative_risk_debator(model=self.model),
+			create_neutral_risk_debator(model=self.model),
+		]
+		super().__init__(agents=debator_agents, name='Risk Manager', rounds=rounds)
 
-    def generate_report(self, conversation_log: list[tuple[str, str]]):
-        analysis_prompt = f"""
+	def generate_report(self, conversation_log: list[tuple[str, str]]):
+		analysis_prompt = f"""
         You are a financial risk assistant. Your task is to read the conversation log between
         an Aggressive Risk Debator, a Conservative Risk Debator, and a Neutral Risk Debator.
         Based on this multi-round debate, please generate a structured risk analysis report
@@ -76,15 +76,17 @@ class RiskManager(DialogueSimulatorAgent):
             Return only the full report in markdown-style formatting.
         """
 
-        # Step 1: Ask model to generate report
-        report_msg = self.model.invoke([
-            SystemMessage(content="You are a financial risk report assistant."),
-            HumanMessage(content=analysis_prompt)
-        ])
-        report = report_msg.content
+		# Step 1: Ask model to generate report
+		report_msg = self.model.invoke(
+			[
+				SystemMessage(content='You are a financial risk report assistant.'),
+				HumanMessage(content=analysis_prompt),
+			]
+		)
+		report = report_msg.content
 
-        # Step 2: Extract trading signal only
-        signal_prompt = f"""
+		# Step 2: Extract trading signal only
+		signal_prompt = f"""
         Based on the following risk report, extract the final trading signal only.
 
         {report}
@@ -93,54 +95,54 @@ class RiskManager(DialogueSimulatorAgent):
         Trading Signal: **Buy** / **Sell** / **Hold**
         """
 
-        signal_msg = self.model.invoke([HumanMessage(content=signal_prompt)])
-        signal = signal_msg.content
+		signal_msg = self.model.invoke([HumanMessage(content=signal_prompt)])
+		signal = signal_msg.content
 
-        # Step 3: Store and return as HumanMessage
-        self.risk_analysis = {
-            "signal": signal,
-            "report": report,
-        }
+		# Step 3: Store and return as HumanMessage
+		self.risk_analysis = {
+			'signal': signal,
+			'report': report,
+		}
 
-        message = HumanMessage(
-            content=json.dumps(self.risk_analysis),
-            name="risk_manager"
-        )
+		message = HumanMessage(
+			content=json.dumps(self.risk_analysis), name='risk_manager'
+		)
 
-        return message
+		return message
 
+	def __call__(self, state: AgentState):
+		data = state.get('data', {})
+		slug = str(data.get('slug'))
 
-    def __call__(self, state: AgentState):
-        data = state.get("data", {})
-        slugs = state["data"].get("slugs", [])
-        for slug in slugs:
-            progress.update_status("risk_manager", slug, "start debating rounds")
-            conversation = super().run(state)
-            progress.update_status("risk_manager", slug, "generating debate results")
-            message = self.generate_report(conversation)
-            progress.update_status("risk_manager", slug, "Done")
+		progress.update_status('risk_manager', slug, 'start debating rounds')
+		conversation = super().run(state)
+		progress.update_status('risk_manager', slug, 'generating debate results')
+		message = self.generate_report(conversation)
+		progress.update_status('risk_manager', slug, 'Done')
 
-        return {
-            "messages": [message],
-            "data": data,
-        }
+		return {
+			'messages': [message],
+			'data': data,
+		}
 
 
-risk_manager = RiskManager(rounds=6)       
+risk_manager = RiskManager(rounds=6)
 
 
-if __name__ == "__main__":
-    test_state = AgentState(
-        messages=[],
-        data={
-            "tickers": ["ohlcv/bitcoin" ],
-            "start_date": "2024-06-07",
-            "end_date": "2024-08-08",
-            "time_interval": "4h",
-        },
-        metadata={"show_reasoning": False},
-    )
-    initial_knowledge = "Please discuss Bitcoin's investment potential over the next 6 months."
-    result = risk_manager.run(test_state)
-    reply = risk_manager.generate_report(conversation_log=result)
-    print(result)
+if __name__ == '__main__':
+	test_state = AgentState(
+		messages=[],
+		data={
+			'tickers': ['ohlcv/bitcoin'],
+			'start_date': '2024-06-07',
+			'end_date': '2024-08-08',
+			'time_interval': '4h',
+		},
+		metadata={'show_reasoning': False},
+	)
+	initial_knowledge = (
+		"Please discuss Bitcoin's investment potential over the next 6 months."
+	)
+	result = risk_manager.run(test_state)
+	reply = risk_manager.generate_report(conversation_log=result)
+	print(result)

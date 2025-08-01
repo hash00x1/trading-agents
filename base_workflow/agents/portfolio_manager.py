@@ -22,8 +22,8 @@ from langchain.tools import tool
 def portfolio_manager(state: AgentState):
 	messages = state.get('messages', [])
 	data = state.get('data', {})  # maybe also get price
-	slug = data.get('slugs', [])[0]
-	token = data.get('token', [])[0]
+	slug = str(data.get('slug'))
+	token = str(data.get('token'))
 	dollar_balance = data.get('dollar balance', 0)
 	token_balance = data.get('token balance', 0)
 	llm = ChatOpenAI(model='gpt-4o')
@@ -37,14 +37,18 @@ def portfolio_manager(state: AgentState):
 	except Exception:
 		crypto_price = state['data']['close_price']
 
-	print('>> Running portfolio_manager for', slug)
 	analyst_summary_prompt = f"""
 	You are a crypto portfolio manager in a multi-agent system.
 	For the asset **{slug}**, you have received signal reports from different analysts (technical, sentiment, on-chain, research, risk, news, etc.).
 	You currently have **{dollar_balance}** in your wallet, the correct token balance is **{token_balance}**.
 	the current market price of **{slug}** is **{crypto_price}**.
 
-	You must follow this rule when making the final decision:
+	Based on all the information, first determine the overall environment:
+	- Favorable to Buy
+	- Favorable to Sell
+	- Neutral	
+
+	Then follow this rule:
 	- If the environment is **favorable to buy**:
 		- If `dollar_balance > 0`, then: 
 			- Call `calculate_buy_quantity(dollar_balance, crypto_price)` to get how many tokens can be bought.
@@ -67,6 +71,9 @@ def portfolio_manager(state: AgentState):
 
 
 	Your task is to synthesize these insights and give ONE final decision, in structured format:
+	- `Final Decision: **Buy** | [number of tokens]`
+	- `Final Decision: **Sell** | [amount in USD]`
+	- `Final Decision: **Hold**`
 	Please keep the format consistent and clean. Do not include any additional output.
 
 	""".format(
@@ -83,14 +90,11 @@ def portfolio_manager(state: AgentState):
 
 	response = portfolio_decision_agent.invoke({'messages': messages})
 	content = response['messages'][-1].content
-	print('>> Final decision content:', content)
-
+	progress.update_status('portfolio_manager', slug, 'Done')
 	# match_signal = re.search(r'Final Decision: \*\*(Buy|Hold|Sell)\*\*', content)
 	# decisions[slug] = {'signal': match_signal.group(1) if match_signal else None}
-	# progress.update_status('portfolio_manager', slug, 'Done')
 	# # Output decision format.
-
-	# print(f'{decisions}\n')
+	print(f'Final Decision for {slug}: {content}')
 	return {'final_decisions': content}  # final decision only contains the action.
 
 

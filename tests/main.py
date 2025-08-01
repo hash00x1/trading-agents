@@ -75,12 +75,9 @@ def parse_response(response):
 
 ##### Run the Crypto Agents Team #####
 def run(
-	slugs: list[str],
-	# wallet: list[str],
 	start_date: str,
 	end_date: str,
 	time_interval: str = '4h',
-	# portfolio: dict,
 	show_reasoning: bool = False,
 ):
 	# Start progress tracking
@@ -103,7 +100,11 @@ def run(
 		symbol_to_slug = load_symbol_slug_mapping_from_file()
 		token_slug_map = {token: symbol_to_slug.get(token.upper()) for token in tokens}
 		# slugs = [symbol_to_slug.get(token.upper()) for token in tokens]
-		for token, slug in token_slug_map:  # invoke for each slug and write to wallet
+		print(type(token_slug_map))
+		for (
+			token,
+			slug,
+		) in token_slug_map.items():  # invoke for each slug and write to wallet
 			df = read_trades(
 				slug
 			)  # read in wallet， read in the last state of the wallet.
@@ -118,7 +119,7 @@ def run(
 					],
 					'data': {
 						'token': token,
-						'slugs': slug,
+						'slug': slug,
 						'dollar balance': dollar_balance,
 						'token balance': token_balance,
 						'start_date': start_date,
@@ -195,7 +196,6 @@ if __name__ == '__main__':
 
 	# Run the hedge fund
 	result = run(
-		slugs=test_state['data']['slugs'],
 		start_date=test_state['data']['start_date'],
 		end_date=test_state['data']['end_date'],
 		time_interval=test_state['data']['time_interval'],

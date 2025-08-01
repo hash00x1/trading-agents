@@ -65,7 +65,7 @@ def social_media_analyst(state: AgentState):
 	start_date = end_date - timedelta(weeks=2)
 	start_date = start_date.strftime('%Y-%m-%d')
 
-	slug = data.get('slugs', [])
+	slug = str(data.get('slug'))
 	llm = ChatOpenAI(model='gpt-4o-mini')
 	sentiment_tools = [
 		get_fear_and_greed_index,

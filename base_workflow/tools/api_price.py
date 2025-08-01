@@ -33,7 +33,6 @@ def get_prices(
 		for row in df_renamed.to_dict(orient='records')
 	]
 
-	_cache.set_prices(slug, [p.model_dump() for p in prices])
 	return prices
 
 

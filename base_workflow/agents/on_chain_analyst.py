@@ -32,8 +32,7 @@ def on_chain_analyst(state: AgentState):
 	start_date = end_date - timedelta(weeks=2)
 	start_date = start_date.strftime('%Y-%m-%d')
 
-	slugs = data.get('slugs', [])
-	slug = slugs[0]
+	slug = str(data.get('slug'))
 	llm = ChatOpenAI(model='gpt-4o-mini')
 	on_chain_analysis = {}
 

@@ -18,7 +18,7 @@ def news_analyst(state: AgentState):
 	messages = state.get('messages', [])
 	data = state.get('data', {})
 	end_date = data.get('end_date')
-	slug = data.get('slugs', [])
+	slug = str(data.get('slug'))
 	llm = ChatOpenAI(model='gpt-4o-mini')
 	# Initialize sentiment analysis
 	news_sentiment_analysis = {}
