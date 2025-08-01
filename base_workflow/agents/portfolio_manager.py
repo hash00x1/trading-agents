@@ -5,9 +5,8 @@ from base_workflow.utils.progress import progress
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from langgraph.graph import StateGraph
-import re
-from tools import get_real_time_price
-
+from base_workflow.tools import get_real_time_price
+from langchain.tools import tool
 
 # You have access to the following tools:
 # Calculate_Amount: "Description"
@@ -23,12 +22,11 @@ from tools import get_real_time_price
 def portfolio_manager(state: AgentState):
 	messages = state.get('messages', [])
 	data = state.get('data', {})  # maybe also get price
-	slug = data.get('slug', [])[0]
+	slug = data.get('slugs', [])[0]
 	token = data.get('token', [])[0]
 	dollar_balance = data.get('dollar balance', 0)
 	token_balance = data.get('token balance', 0)
 	llm = ChatOpenAI(model='gpt-4o')
-	decisions = {}
 
 	progress.update_status(
 		'portfolio_manager', slug, 'Aggregating multi-agent signals and deciding.'
@@ -39,28 +37,38 @@ def portfolio_manager(state: AgentState):
 	except Exception:
 		crypto_price = state['data']['close_price']
 
+	print('>> Running portfolio_manager for', slug)
 	analyst_summary_prompt = f"""
 	You are a crypto portfolio manager in a multi-agent system.
 	For the asset **{slug}**, you have received signal reports from different analysts (technical, sentiment, on-chain, research, risk, news, etc.).
 	You currently have **{dollar_balance}** in your wallet, the correct token balance is **{token_balance}**.
 	the current market price of **{slug}** is **{crypto_price}**.
-	Your task is to synthesize these insights and give ONE final decision, in structured format:
-	---
-	### Final Decision (REQUIRED)
-	Provide one final trading signal:
 
-	`Final Decision: **Buy**`  | + quantity
-	`Final Decision: **Hold**`  | + quantity
-	`Final Decision: **Sell**`  | + quantity
+	You must follow this rule when making the final decision:
+	- If the environment is **favorable to buy**:
+		- If `dollar_balance > 0`, then: 
+			- Call `calculate_buy_quantity(dollar_balance, crypto_price)` to get how many tokens can be bought.
+			- Return: `Final Decision: **Buy**` | [calculated token quantity]
+		- If `dollar_balance == 0`, then: `Final Decision: **Hold**`.
+	- If the environment is **favorable to sell**:
+		- If `token_balance > 0`, then: 
+			- Call `calculate_sell_value(token_balance, crypto_price)` to get how much USD can be received.
+			- Return: `Final Decision: **Sell**` | [calculated USD amount]
+		- If `token_balance == 0`, then: `Final Decision: **Hold**` .
+	- If the environment is **neutral**, then: `Final Decision: **Hold**`.
 
-	Please keep the format consistent and clean. Do not include any additional output.
 	You have access to the following tools:
-	Calculate_Amount: "Description"
-	Buy: ""
-	Sell: ""
-	Hold: "" -> defined as return None 
-	def Hold:
-		return None
+
+	- `calculate_buy_quantity(dollar_balance, crypto_price)`  
+		→ Returns how many tokens can be bought with available USD.
+
+	- `calculate_sell_value(token_balance, crypto_price)`  
+		→ Returns how much USD can be received by selling the available tokens.
+
+
+	Your task is to synthesize these insights and give ONE final decision, in structured format:
+	Please keep the format consistent and clean. Do not include any additional output.
+
 	""".format(
 		slug=slug,
 		dollar_balance=dollar_balance,
@@ -68,19 +76,43 @@ def portfolio_manager(state: AgentState):
 		crypto_price=crypto_price,
 	)
 	portfolio_decision_agent = create_react_agent(
-		llm, tools=[], state_modifier=analyst_summary_prompt
+		llm,
+		tools=[calculate_buy_quantity, calculate_sell_value],
+		state_modifier=analyst_summary_prompt,
 	)
 
 	response = portfolio_decision_agent.invoke({'messages': messages})
 	content = response['messages'][-1].content
-	match_signal = re.search(r'Final Decision: \*\*(Buy|Hold|Sell)\*\*', content)
-	decisions[slug] = {'signal': match_signal.group(1) if match_signal else None}
-	progress.update_status('portfolio_manager', slug, 'Done')
-	# Output decision format.
+	print('>> Final decision content:', content)
 
-	print(f'{decisions}\n')
-	return {'final_decisions': decisions}  # final decision only contains the action.
+	# match_signal = re.search(r'Final Decision: \*\*(Buy|Hold|Sell)\*\*', content)
+	# decisions[slug] = {'signal': match_signal.group(1) if match_signal else None}
+	# progress.update_status('portfolio_manager', slug, 'Done')
+	# # Output decision format.
 
+	# print(f'{decisions}\n')
+	return {'final_decisions': content}  # final decision only contains the action.
+
+
+@tool
+def calculate_buy_quantity(dollar_balance: float, crypto_price: float) -> float:
+	"""Returns how many tokens can be bought with the given dollar balance and price."""
+	return round(dollar_balance / crypto_price, 6)
+
+
+@tool
+def calculate_sell_value(token_balance: float, crypto_price: float) -> float:
+	"""Returns how much USD can be received by selling tokens at current price."""
+	return round(token_balance * crypto_price, 2)
+
+
+# You have access to the following tools:
+# Calculate_Amount: "Description"
+# Buy: ""
+# Sell: ""
+# Hold: "" -> defined as return None
+# def Hold:
+# 	return None
 
 # define calculation tool.
 if __name__ == '__main__':
@@ -123,7 +155,11 @@ if __name__ == '__main__':
 			),
 		],
 		'data': {
+			'token': ['BTC'],
 			'slugs': ['bitcoin'],
+			'dollar balance': 1000000,  # initial capital in USD
+			'token balance': 0,  # initial token balance
+			'close_price': 30000,  # current market price of BTC
 			'start_date': '2024-06-07',
 			'end_date': '2024-06-21',
 			'time_interval': '4h',
@@ -132,5 +168,3 @@ if __name__ == '__main__':
 	}
 
 	final_state = graph.invoke(initial_state)
-
-	print(final_state)

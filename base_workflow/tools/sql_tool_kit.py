@@ -33,7 +33,7 @@ def read_trades(slug: str) -> pd.DataFrame:
 
 
 @tool
-def buy(slug: str, quantity: float, price: float, remaining_dollar: float) -> str:
+def buy(slug: str, amount: float, price: float, remaining_dollar: float) -> str:
 	"""
 	Execute a BUY order by inserting into the trades table.
 	"""
@@ -52,15 +52,15 @@ def buy(slug: str, quantity: float, price: float, remaining_dollar: float) -> st
 	timestamp = datetime.utcnow().isoformat()
 	cursor.execute(
 		"INSERT INTO trades (timestamp, action, slug, amount, price, remaining_dollar) VALUES (?, 'buy', ?, ?, ?, ?)",
-		(timestamp, slug, quantity, price, remaining_dollar),
+		(timestamp, slug, amount, price, remaining_dollar),
 	)
 	conn.commit()
 	conn.close()
-	return f'Executed BUY for {slug} | {quantity} @ {price}'
+	return f'Executed BUY for {slug} | {amount} @ {price}'
 
 
 @tool
-def sell(slug: str, quantity: float, price: float, remaining_dollar: float) -> str:
+def sell(slug: str, amount: float, price: float, remaining_dollar: float) -> str:
 	"""
 	Execute a SELL order by inserting into the trades table.
 	"""
@@ -79,11 +79,11 @@ def sell(slug: str, quantity: float, price: float, remaining_dollar: float) -> s
 	timestamp = datetime.utcnow().isoformat()
 	cursor.execute(
 		"INSERT INTO trades (timestamp, action, slug, amount, price, remaining_dollar) VALUES (?, 'sell', ?, ?, ?, ?)",
-		(timestamp, slug, quantity, price, remaining_dollar),
+		(timestamp, slug, amount, price, remaining_dollar),
 	)
 	conn.commit()
 	conn.close()
-	return f'Executed SELL for {slug} | {quantity} @ {price}'
+	return f'Executed SELL for {slug} | {amount} @ {price}'
 
 
 @tool
@@ -114,7 +114,7 @@ if __name__ == '__main__':
 	# 	return fn.invoke(call['args'])
 
 	# for cmd in [
-	# 	'Buy 0.2 BTC at 29000, remians are 100000 dollar',  # unify all the writing style in portfolio_manager at outputs
+	# 	'Buy 0.2 BTC at 29000, remains are 1 BTC',  # unify all the writing style in portfolio_manager at outputs
 	# 	'Sell 1 ETH at 1850, remains are 1345000 dollar',
 	# 	'Hold DOGE',
 	# ]:
