@@ -9,6 +9,7 @@ from typing_extensions import Literal
 import json
 from typing import Any
 from base_workflow.utils.progress import progress
+import re
 
 
 class ResearchReport:
@@ -20,7 +21,7 @@ class ResearchReport:
 class ResearchManager(DialogueSimulatorAgent):
 	def __init__(self, rounds: int, state: Optional[AgentState] = None):
 		self.research_analysis: dict[str, Any] = {}
-		self.model = ChatOpenAI(model='gpt-4o', temperature=0.7)
+		self.model = ChatOpenAI(model='gpt-4o', temperature=0.7, max_tokens=2000)
 		# self.data = state["data"]
 
 		if state is None:
@@ -33,75 +34,62 @@ class ResearchManager(DialogueSimulatorAgent):
 		super().__init__(agents=research_agents, name='Research Manager', rounds=rounds)
 
 	def generate_report(self, conversation_log: List[tuple[str, str]]):
-		analysis_prompt = f"""
-        You are a financial analyst assistant. Your task is to read the conversation log between
-        a Bullish Researcher and a Bearish Researcher. Based on this multi-round debate, please generate
-        a structured research report to assist a trader in making an informed trading decision,
-        in the last chapter on the report, you must give a actionable signal.
-
-        Conversation Log:
-        {conversation_log}
-
-        The report should follow this structure:
+		system_msg = """
+        You are the Research Manager in a multi-agent crypto trading system. 
+		Your will receive a debate conversation log between a Bullish Researcher and a Bearish Researcher.
+		Your tasks are:
+			1. carefully review the debate conversation log
+			2. make a clear and actionable decision based on the strength and coherence of their arguments, choose one of the following options:
+				- Align with the **Bullish Researcher** → if their case is more compelling.
+				- Align with the **Bearish Researcher** → if their reasoning is stronger.
+			
+			3. write a report to present your decision and reasoning.
         
-            # Executive Summary
-            Briefly summarize the overall market outlook, key talking points, and your final recommendation (Buy / Sell / Hold). 
-            This should be concise (3–5 lines), easy to read, and understandable to a portfolio manager.
+		The report should follow this structure:
+        
+		---
 
-            # Market Signals
-            ## Bullish Signals
-            List arguments or indicators supporting a positive outlook. Reference specific insights or arguments from the Bullish Researcher.
+		## Research Debate Evaluation Report
 
-            ## Bearish Signals
-            List arguments or indicators supporting a negative outlook. Reference specific insights or arguments from the Bearish Researcher.
+		### 1. Summary of Bullish Researcher’s Arguments
+		- [Summarize key bullish points.]
 
-            ## Quantitative Analysis
-            Summarize any numerical indicators discussed or implied (e.g., RSI, MACD, volume trends, volatility).
+		### 2. Summary of Bearish Researcher’s Arguments
+		- [Summarize key bearish points.]
 
-            # Sentiment & Fundamental Factors
-            Summarize qualitative insights (e.g., macro trends, news impact, regulatory changes, social sentiment, research articles) 
-            derived from the conversation or tools used.
+		### 3. Evaluation of Arguments
+		- **Bullish Strengths:** [What is strong or well-supported?]
+		- **Bullish Weaknesses:** [Any flaws, gaps, or overstatements?]
+		- **Bearish Strengths:** [What is strong or well-supported?]
+		- **Bearish Weaknesses:** [Any flaws, gaps, or overstatements?]
+		- **Balance of Reasoning:** [Compare both sides: who was more convincing and why?]
 
-            # Data Summary
-            List metadata related to the analysis:
-            - Assets discussed
-            - Time interval
-            - Date range
-            - Tools or sources used by agents (e.g., arxiv, wikipedia)
+		### 4. Final Decision
+		- **Final Decision:** **Buy / Sell**
 
-            # Final Recommendation
-            - Based on the report above, provide a clear trading signal.
-            - The format must be: `Trading Signal: **Buy** / **Hold** / **Sell**`
-            - Please return only the signal, no explanation.
+		- **Justification:** [Clearly state why this position is more reasonable, based on your evaluation.]
+
+		---
 
             Please return only the research report, formatted using Markdown-style headers.
         """
-
-		# Call the LLM to get the analysis
-		report_msg = self.model.invoke(
-			[
-				SystemMessage(
-					content='You are a financial report assistant. Your task is...'
-				),
-				HumanMessage(content=analysis_prompt),
-			]
+		human_msg = HumanMessage(
+			content=f"""Here is the conversation log between the Bullish Researcher and Bearish Researcher: {conversation_log}"""
 		)
-		report = report_msg.content
-		signal_prompt = f"""
-            Based on the following report, output the final trading signal only.
+		# Call the LLM to get the analysis
+		response_msg = self.model.invoke([SystemMessage(content=system_msg), human_msg])
+		content = str(response_msg.content)
+		match_signal = re.search(r'(?i)final decision\W*\**\s*(buy|sell)\**', content)
 
-            {report}
+		if match_signal:
+			match_signal = match_signal.group(1).capitalize()
+		else:
+			match_signal = 'Hold'
 
-            Please return only one line in this format:
-            Trading Signal: **Buy** / **Sell** / **Hold**
-            """
-		signal_msg = self.model.invoke([HumanMessage(content=signal_prompt)])
-		signal = signal_msg.content
 		self.research_analysis = {
-			'signal': signal,
-			'report': report,
+			'signal': match_signal,
+			'report': content,
 		}
-
 		message = HumanMessage(
 			content=json.dumps(self.research_analysis), name='research_manager'
 		)
@@ -141,4 +129,4 @@ if __name__ == '__main__':
 	)
 	result = research_manager.run(test_state)
 	reply = research_manager.generate_report(conversation_log=result)
-	print(result)
+	print(reply)

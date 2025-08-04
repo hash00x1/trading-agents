@@ -17,6 +17,8 @@ from base_workflow.graph.state import AgentState
 from base_workflow.utils.progress import progress
 from reset import load_symbol_slug_mapping_from_file
 import json
+from datetime import datetime, timedelta
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -30,21 +32,53 @@ llm = ChatOpenAI(temperature=0)
 llm_with_tools = llm.bind_tools(TOOLS)
 
 
-def hedging_tool_node(user_input: str) -> str:
-	# LLM generates an instruction indicating which tool it wants to call and with what parameters
-	ai_msg = llm_with_tools.invoke(user_input)
+# def hedging_tool_node(inputs: Dict[str, Any]) -> Dict[str, Any]:
+# 	# LLM generates an instruction indicating which tool it wants to call and with what parameters
+# 	user_input = inputs.get('Portfolio manager')
+# 	ai_msg = llm_with_tools.invoke(user_input)
+# 	calls = ai_msg.tool_calls
+# 	if not calls:
+# 		return ai_msg.content
+
+
+# 	# Only one tool is used, based on the logic now
+# 	call = calls[0]
+# 	fn = next(t for t in TOOLS if t.name == call['name'])
+# 	return fn.invoke(call['args'])
+def hedging_tool_node(inputs: dict) -> dict:
+	user_input = inputs.get('Portfolio manager')
+
+	if not isinstance(user_input, str) or not user_input.strip():
+		return {'error': "Missing or invalid 'Portfolio manager' input."}
+
+	try:
+		ai_msg = llm_with_tools.invoke(user_input)
+	except Exception as e:
+		return {'error': f'LLM invocation failed: {str(e)}'}
+
 	calls = ai_msg.tool_calls
 	if not calls:
-		return ai_msg.content
+		return {'result': ai_msg.content}
 
-	# Only one tool is used, based on the logic now
 	call = calls[0]
-	fn = next(t for t in TOOLS if t.name == call['name'])
-	return fn.invoke(call['args'])
+	fn = next((t for t in TOOLS if t.name == call['name']), None)
+	if not fn:
+		return {'error': f"Tool '{call['name']}' not found."}
+
+	try:
+		tool_result = fn.invoke(call['args'])
+	except Exception as e:
+		return {'error': f'Tool execution failed: {str(e)}'}
+
+	return {
+		'tool_name': call['name'],
+		'tool_args': call['args'],
+		'tool_result': tool_result,
+	}
 
 
 # for cmd in [
-#     'Buy 0.2 BTC at 29000, remians are 100000 dollar',  # unify all the writing style in portfolio_manager at outputs
+#     'Buy 0.2 BTC at 29000, remains are 100000 dollar',  # unify all the writing style in portfolio_manager at outputs
 #     'Sell 1 ETH at 1850, remains are 1345000 dollar',
 #     'Hold DOGE',
 # ]:
@@ -100,7 +134,7 @@ def run(
 		symbol_to_slug = load_symbol_slug_mapping_from_file()
 		token_slug_map = {token: symbol_to_slug.get(token.upper()) for token in tokens}
 		# slugs = [symbol_to_slug.get(token.upper()) for token in tokens]
-		print(type(token_slug_map))
+		results = {}
 		for (
 			token,
 			slug,
@@ -129,12 +163,12 @@ def run(
 					'metadata': {'show_reasoning': show_reasoning},
 				},
 			)
-			return {
+			results[token] = {
 				'messages': final_state['messages'],
-				'data': final_state[
-					'data'
-				],  # should be a key:value pair token ticker: +/- Balance bought .e.g SOL -> {'SOL': + 10} | withdrwa in dollars from wallet
+				'data': final_state['data'],
 			}
+
+			return results  # if return not alined with for, then only the first token will be tested. Note for test use.
 		# -> use finale_state to update wallet -> wallet.update
 
 	finally:
@@ -179,16 +213,10 @@ def create_workflow(selected_analysts=None):
 
 
 if __name__ == '__main__':
-	test_state = AgentState(
-		messages=[],
-		data={
-			'slugs': ['bitcoin'],
-			'start_date': '2024-06-07',
-			'end_date': '2024-08-08',
-			'time_interval': '4h',
-		},
-		metadata={'show_reasoning': False},
-	)
+	end_date = datetime.utcnow()
+	start_date = end_date - timedelta(days=30)
+	start_str = start_date.strftime('%Y-%m-%d')
+	end_str = end_date.strftime('%Y-%m-%d')
 
 	# Create the workflow with selected analysts
 	workflow = create_workflow()
@@ -196,9 +224,10 @@ if __name__ == '__main__':
 
 	# Run the hedge fund
 	result = run(
-		start_date=test_state['data']['start_date'],
-		end_date=test_state['data']['end_date'],
-		time_interval=test_state['data']['time_interval'],
-		show_reasoning=test_state['metadata'].get('show_reasoning', False),
+		start_date=start_str,
+		end_date=end_str,
+		time_interval='4h',
+		show_reasoning=False,
 	)
-	print(result)  # maybe show resoning
+
+	print(result)

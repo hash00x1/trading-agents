@@ -11,6 +11,8 @@ import numpy as np
 
 from base_workflow.tools.api_price import get_prices, prices_to_df
 from base_workflow.utils.progress import progress
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
 ##### Technical Analyst #####
 # Explanation of the indicators used by the technical analysis agent:
@@ -50,8 +52,11 @@ def technical_analyst(state: AgentState):
 
 	# Change the start_data to be two weeks before the end_date
 	data = state['data']
-	start_date = data['start_date']
+	# start_date = data['start_date']
 	end_date = data['end_date']
+	end = datetime.strptime(end_date, '%Y-%m-%d')
+	start = end - relativedelta(months=2)
+	start_date = start.strftime('%Y-%m-%d')
 	interval = data['time_interval']
 	slug = str(data.get('slug'))
 
@@ -526,8 +531,8 @@ if __name__ == '__main__':
 		messages=[],
 		data={
 			'slug': 'bitcoin',
-			'start_date': '2024-06-07',
-			'end_date': '2024-08-08',
+			'start_date': '2025-06-04',
+			'end_date': '2025-08-04',
 			'time_interval': '4h',
 		},
 		metadata={'show_reasoning': False},

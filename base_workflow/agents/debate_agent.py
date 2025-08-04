@@ -159,6 +159,7 @@ class DialogueSimulatorAgent:
 		"""
 		self._step = 0
 		log: List[tuple[str, str]] = []
+		# Through state[messages] read in the history result from other agents.
 		messages_history = state['messages']
 
 		# kick things off

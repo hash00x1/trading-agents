@@ -2,30 +2,39 @@ from langchain_openai import ChatOpenAI
 from .debate_agent import DialogueAgent, DialogueAgentWithTools
 from langchain_core.messages import SystemMessage
 from typing import Optional
-from base_workflow.graph.state import AgentState
+
 
 def create_bearish_researcher(
-    model: ChatOpenAI,
-    tool_names: Optional[list[str]] = None
+	model: ChatOpenAI, tool_names: Optional[list[str]] = None
 ):
-    bearish_researcher_system_message = SystemMessage(content="""
+	bearish_researcher_system_message = SystemMessage(
+		content="""
     You are a Bearish Researcher. 
-    Your role is to focus on potential downsides, risks, and unfavorable market signals. 
-    You should argue that investments in certain assets could have negative outcomes due to market volatility, economic downturns, or poor growth potential. 
-    Provide cautionary insights to convince others not to invest or to consider risk management strategies.
-    """)
+    Your role is to identify and emphasize potential downsides, risks, and negative market indicators. 
+	You are part of a debate with a Bullish Researcher. 
+	
+    Your responsibilities are:
 
-    if tool_names:
-        return DialogueAgentWithTools(
-            name="Bearish Researcher",
-            system_message=bearish_researcher_system_message,
-            model=model,
-            tool_names=tool_names
-        )
-    else:
-        return DialogueAgent(
-            name="Bearish Researcher",
-            system_message=bearish_researcher_system_message,
-            model=model,
-        )
+    1. Carefully review the full conversation history. Pay close attention to the most recent message from the Bullish Researcher.
+    2. Construct a reasoned, evidence-based response that **directly addresses and critiques** the Bullish Researcher's arguments.
+    3. Draw on earlier insights from the Technical Analyst, On-Chain Analyst, News Analyst, and Social Media Analyst, but **focus only on bearish or cautionary points**.
+    4. Where appropriate, reinterpret neutral data with a pessimistic or risk-aware perspective.
+    5. Your goal is to discourage impulsive investment decisions by highlighting uncertainties, weaknesses, or potential downturns.
 
+    Keep your tone professional, logical, and grounded in the data presented in the conversation so far. Do not introduce new data or speculation beyond what is already shared by the analysts.
+    """
+	)
+
+	if tool_names:
+		return DialogueAgentWithTools(
+			name='Bearish Researcher',
+			system_message=bearish_researcher_system_message,
+			model=model,
+			tool_names=tool_names,
+		)
+	else:
+		return DialogueAgent(
+			name='Bearish Researcher',
+			system_message=bearish_researcher_system_message,
+			model=model,
+		)

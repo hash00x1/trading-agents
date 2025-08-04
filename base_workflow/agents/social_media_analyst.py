@@ -114,15 +114,16 @@ def social_media_analyst(state: AgentState):
 	For your reference, the current date is {date}, we are looking at {crypto}.
 
 	Your main task:
-	- Write a report
-	- Give trading signal
-	- Give confidence level
+	- Analyze public sentiment across major platforms.
+	- Write a structured sentiment report.
+	- Output a trading signal based on sentiment.
+	- Provide a numerical confidence level.
 
 	You have access to the following tools:
 	- `get_fear_and_greed_index(target_date: str)`: Retrieves the crypto fear and greed index from Alternative.me for the given date.
 	- `analyze_social_trends_openai(topic: str, curr_date: str)`: Returns a social sentiment and trend analysis based on crypto discussions across major platforms.
 
-	You must use these tools to enrich your sentiment analysis and trading decision.
+	You must use all tools to ensure well-rounded judgment.
 
 	Your output must consist of three parts:
 
