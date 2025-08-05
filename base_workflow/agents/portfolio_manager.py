@@ -41,10 +41,10 @@ def portfolio_manager(state: AgentState):
 	# print(dollar_balance)
 	analyst_summary_prompt = f"""
 	You are a crypto portfolio manager in a multi-agent system.
+	You need to behave like a dictator.
 	You must consider all analyst inputs (technical, sentiment, on-chain, risk, research, and news), and determine whether there is a **dominant trend or shared conviction** among them.
 	For the asset **{slug}**, you have received signal reports from different analysts (technical, sentiment, on-chain, research, risk, news, etc.).
-	Among these, the **Technical Analyst's signal should be treated as the primary driver** of your decision-making, unless there is overwhelming contradictory evidence. Their analysis carries more weight in evaluating short- to mid-term positioning.
-	Other analysts offer valuable context, but your strategy should align closely with the technical signal whenever it is clear and supported.
+	Your task is to **evaluate all analyst inputs equally**, identify whether a clear directional trend or consensus exists, and make a trading decision accordingly.
 	You currently have **{dollar_balance}** in your wallet, the correct token balance is **{token_balance}**.
 	the current market price of **{slug}** is **{crypto_price}**.
 
@@ -52,7 +52,10 @@ def portfolio_manager(state: AgentState):
 
 	- **Favorable to Buy** → if most strong signals or leading indicators support upside potential.
 	- **Favorable to Sell** → if dominant indicators or risks suggest downside exposure.
-	- **Neutral** → **only** if signals are contradictory and **no clear trend or conviction** can be reasonably identified.
+	- **Neutral**: Try to avoid, only select if:
+		- The technical signal is itself Neutral, **and**
+		- No more than one other analyst gives a strong directional signal.
+		- Or all analysts are explicitly contradictory and cancel each other.
 
 	### Step 2: Choose a Trading Action Based on Environment and Holdings
 	Follow this rule:
@@ -77,8 +80,9 @@ def portfolio_manager(state: AgentState):
 		→ Returns how much USD can be received by selling the available tokens.
 
 
-	### Final Output Format (return only one line):	- `Final Decision: **Buy** | [number of tokens] {token}`
-	- `Final Decision: **Sell** | [amount in USD] USD`
+	### Final Output Format (return only one line):	
+	- `Final Decision: **Buy** | [number of tokens] {token}`
+	- `Final Decision: **Sell** | [amount in USD]`
 	- `Final Decision: **Hold**`
 	Please keep the format consistent and clean. Do not include any additional output.
 
@@ -100,8 +104,10 @@ def portfolio_manager(state: AgentState):
 	# match_signal = re.search(r'Final Decision: \*\*(Buy|Hold|Sell)\*\*', content)
 	# decisions[slug] = {'signal': match_signal.group(1) if match_signal else None}
 	# # Output decision format.
-	print(f'Final Decision for {slug}: {content}')
-	return {'Portfolio manager': content}  # final decision only contains the action.
+	# print(f'Final Decision for {slug}: {content}')
+	state['data']['Portfolio manager'] = content
+	print(content)
+	return state  # final decision only contains the action.
 
 
 @tool
@@ -178,3 +184,5 @@ if __name__ == '__main__':
 	}
 
 	final_state = graph.invoke(initial_state)
+	final_decision = final_state['data']['Portfolio manager']
+	print(final_decision)

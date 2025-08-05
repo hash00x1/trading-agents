@@ -24,7 +24,7 @@ from langchain.agents import initialize_agent, AgentType
 
 
 def on_chain_analyst(state: AgentState):
-	"""Analyzes on-chain data using Santiment and generates trading signals."""
+	"""Analyzes on-chain data using Santiment and generates trading signals. 14 days window."""
 	# messages = state.get('messages', [])
 	data = state.get('data', {})
 	end_date_str = data.get('end_date')
@@ -201,8 +201,11 @@ if __name__ == '__main__':
 		'messages': [
 			HumanMessage(content='Make trading decisions based on the provided data.')
 		],
+		# "bitcoin", "pepe", "dogecoin", 'ethereum', 'tether'
+		#  with "tether", has the trading data back but HOLD
+		# “solana”, 'uniswap',
 		'data': {
-			'slugs': ['bitcoin'],
+			'slug': 'tether',
 			'start_date': '2024-06-07',
 			'end_date': '2024-08-08',
 			'time_interval': '4h',

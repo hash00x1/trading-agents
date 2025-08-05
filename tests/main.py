@@ -45,14 +45,14 @@ llm_with_tools = llm.bind_tools(TOOLS)
 # 	call = calls[0]
 # 	fn = next(t for t in TOOLS if t.name == call['name'])
 # 	return fn.invoke(call['args'])
-def hedging_tool_node(inputs: dict) -> dict:
-	user_input = inputs.get('Portfolio manager')
+def hedging_tool_node(state: AgentState) -> dict:
+	input = state['data']['Portfolio manager']
 
-	if not isinstance(user_input, str) or not user_input.strip():
+	if not isinstance(input, str) or not input.strip():
 		return {'error': "Missing or invalid 'Portfolio manager' input."}
 
 	try:
-		ai_msg = llm_with_tools.invoke(user_input)
+		ai_msg = llm_with_tools.invoke(input)
 	except Exception as e:
 		return {'error': f'LLM invocation failed: {str(e)}'}
 
@@ -125,11 +125,13 @@ def run(
 		tokens = [
 			'BTC',
 			'ETH',
-			'ADA',
-			'SOL',
-			'DOT',
+			'PEPE',
+			'DOGE',
+			'USDT',
 		]  # bag of tokens -> generate randomly, or predefined.
-		# slugs = ['ethereum', 'bitcoin', 'cardano', 'solana', "polkadot"]
+		# "bitcoin", "pepe", "dogecoin", 'ethereum', 'tether'
+		# slugs = [ 'bitcoin', 'ethereum', 'cardano', 'solana', 'chainlink']
+		# 只选择能测试的。
 
 		symbol_to_slug = load_symbol_slug_mapping_from_file()
 		token_slug_map = {token: symbol_to_slug.get(token.upper()) for token in tokens}
@@ -168,7 +170,7 @@ def run(
 				'data': final_state['data'],
 			}
 
-			return results  # if return not alined with for, then only the first token will be tested. Note for test use.
+		return results  # if return not alined with for, then only the first token will be tested. Note for test use.
 		# -> use finale_state to update wallet -> wallet.update
 
 	finally:
@@ -206,6 +208,7 @@ def create_workflow(selected_analysts=None):
 	workflow.add_edge(
 		'portfolio_manager', 'hedging_tools'
 	)  # <- bound to the portfolio tools (s. langchain documentation tools.bind())
+	# check hedging tool node， write in all variable needed.
 	workflow.add_edge('hedging_tools', END)
 
 	workflow.set_entry_point('start_node')
@@ -230,4 +233,4 @@ if __name__ == '__main__':
 		show_reasoning=False,
 	)
 
-	print(result)
+	# print(result)

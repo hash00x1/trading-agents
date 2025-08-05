@@ -121,7 +121,7 @@ def social_media_analyst(state: AgentState):
 
 	You have access to the following tools:
 	- `get_fear_and_greed_index(target_date: str)`: Retrieves the crypto fear and greed index from Alternative.me for the given date.
-	- `analyze_social_trends_openai(topic: str, curr_date: str)`: Returns a social sentiment and trend analysis based on crypto discussions across major platforms.
+	- `analyze_social_trends_openai(slug: str, curr_date: str)`: Returns a social sentiment and trend analysis based on crypto discussions across major platforms.
 
 	You must use all tools to ensure well-rounded judgment.
 

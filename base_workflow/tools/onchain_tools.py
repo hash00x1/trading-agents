@@ -26,13 +26,15 @@ def _build_system_text(slug: str, start_date: str, end_date: str) -> str:
 		f'ASSET: {slug}\n'
 		f'DATE_WINDOW: from {start_date} to {end_date} (inclusive, format YYYY-MM-DD). Do not use data outside this window.\n\n'
 		'DATA PRIORITY:\n'
-		'1) Primary: on-chain data/providers (e.g., Whale Alert streams/alerts, Santiment metrics, Glassnode, IntoTheBlock).\n'
-		'2) Secondary (context only): reputable news (CoinDesk, The Block, etc.). News must NOT replace on-chain evidence.\n\n'
+		'1) Primary: On-chain data sources supporting multi-chain assets (e.g., Santiment, Glassnode, Whale Alert, Nansen, Arkham).\n'
+		'   - Include Ethereum, Bitcoin, Solana, Binance Smart Chain, and popular ERC-20 tokens (e.g., USDT, USDC, PEPE).\n'
+		'   - Accept contract-address-level metrics when available (e.g., for tokens like PEPE).\n'
+		'2) Secondary (for context): reputable news (CoinDesk, The Block, CryptoSlate, etc.), only if it cites on-chain events directly within the time window.\n\n'
 		'STRICT RULES:\n'
 		'- Use only the specified asset; discard other tickers.\n'
 		'- Discard sources without clear dates or outside the date window.\n'
 		'- Do NOT output price/market summary or live quotes (no price tools available here).\n'
-		"- Do NOT fabricate numbers. If no credible on-chain evidence is found for the window, return status='NO_DATA'.\n"
+		'- If only indicative data is found (without exact values), include it in `notes`, and set numeric fields to null.\n'
 		'- Include citations with URL and published date for every numeric/strong claim.\n\n'
 		'- Prefer primary on-chain sources (Whale Alert, Santiment, Glassnode). Use news only if they directly cite on-chain metrics within the date window.\n\n'
 		'OUTPUT: Return ONLY a JSON object matching the schema described below. No extra text.\n'
@@ -55,12 +57,12 @@ def _build_system_text(slug: str, start_date: str, end_date: str) -> str:
 @tool
 def get_on_chain_openai(slug: str, curr_date: str):
 	"""
-	Search for on-chain whale-related activity about a token in the last 7 days.
+	Search for on-chain whale-related activity about a token in the last 14 days.
 	"""
 	client = OpenAI()
 	end_date = _date_only(curr_date)
 	curr_dt = datetime.strptime(end_date, '%Y-%m-%d')
-	start_date = (curr_dt - timedelta(days=7)).date().isoformat()
+	start_date = (curr_dt - timedelta(days=14)).date().isoformat()
 	system_text = _build_system_text(slug, start_date, end_date)
 
 	response = client.responses.create(
@@ -81,7 +83,7 @@ def get_on_chain_openai(slug: str, curr_date: str):
 			{
 				'type': 'web_search_preview',
 				'user_location': {'type': 'approximate'},
-				'search_context_size': 'low',
+				'search_context_size': 'high',
 			}
 		],
 		temperature=0.2,
@@ -236,7 +238,7 @@ if __name__ == '__main__':
 
 	# print('Whale Activity News:\n', whale_news)
 
-	llm = ChatOpenAI(model='gpt-4', temperature=0)
+	llm = ChatOpenAI(model='gpt-4o', temperature=0)
 
 	agent = initialize_agent(
 		tools=[get_daa_trend_analysis],

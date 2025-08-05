@@ -44,7 +44,7 @@ def reset_output(folder_path: str, force: bool = False):
 def log_initial_capital(slug: str, remaining_dollar: float):
 	"""
 	Log only timestamp, slug, and remaining_dollar into the trades table.
-	Other fields remain NULL.
+	Other fields remain 0.
 	"""
 	db_path = Path(f'base_workflow/outputs/{slug}_trades.db')
 	db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -69,7 +69,7 @@ def log_initial_capital(slug: str, remaining_dollar: float):
 	# Insert minimal capital info
 	timestamp = datetime.utcnow().isoformat()
 	cursor.execute(
-		'INSERT INTO trades (timestamp, slug, remaining_dollar) VALUES (?, ?, ?)',
+		'INSERT INTO trades (timestamp, slug, amount, remaining_dollar) VALUES (?, ?, 0.0, ?)',
 		(timestamp, slug, remaining_dollar),
 	)
 
@@ -84,7 +84,13 @@ def main():
 	Each token will be given an initial capital of 1,000,000 USD.
 	Together, the total initial capital is 1,000,000 USD * tokens number.
 	"""
-	tokens = ['BTC', 'ETH', 'ADA', 'SOL', 'DOT']
+	tokens = [
+		'BTC',
+		'ETH',
+		'PEPE',
+		'DOGE',
+		'USDT',
+	]
 	initial_capital = 1000000  # average capital per token in USD, total initial capital * tokens number.
 	parser = argparse.ArgumentParser(description='Delete the output folder')
 	parser.add_argument(

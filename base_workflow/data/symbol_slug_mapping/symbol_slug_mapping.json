@@ -30,5 +30,6 @@
   "HBAR": "hedera-hashgraph",
   "THETA": "theta-token",
   "NEO": "neo",
-  "XTZ": "tezos"
+  "XTZ": "tezos",
+  "PEPE": "pepe"
 }

@@ -7,10 +7,10 @@ san.ApiConfig.api_key = 'rkf5d3lrsulqpyl3_47npxf6doa5fi4ok'
 # print(metrics)
 # Fetch OHLCV data
 data = san.get(
-	'ohlcv/bitcoin',  # <-- replace 'bitcoin' with your asset slug, e.g. 'ethereum', 'aave', etc.
+	'ohlcv/chainlink',
 	# Slug="bitcoin",
 	from_date='2025-07-01T00:00:00+00:00',
-	to_date='2025-07-29T23:59:59+00:00',
+	to_date='2025-08-04T23:59:59+00:00',
 	interval='4h',
 )
 # Adjusted date range within the allowed interval
