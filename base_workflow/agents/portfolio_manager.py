@@ -2,11 +2,14 @@ import json
 from langchain_core.messages import HumanMessage
 from base_workflow.graph.state import AgentState
 from base_workflow.utils.progress import progress
-from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from langgraph.graph import StateGraph
 from base_workflow.tools import get_real_time_price
-from langchain.tools import tool
+from datetime import datetime
+import sqlite3
+from pathlib import Path
+import re
+from base_workflow.utils.llm_config import get_llm
 
 # You have access to the following tools:
 # Calculate_Amount: "Description"
@@ -26,11 +29,12 @@ def portfolio_manager(state: AgentState):
 	token = str(data.get('token'))
 	dollar_balance = data.get('dollar balance', 0)
 	token_balance = data.get('token balance', 0)
-	llm = ChatOpenAI(model='gpt-4o')
+	llm = get_llm()
 
 	progress.update_status(
 		'portfolio_manager', slug, 'Aggregating multi-agent signals and deciding.'
 	)
+	portfolio_analysis = {}
 
 	try:  # if not get the newest price use the latest ohlcv price instead.
 		crypto_price = get_real_time_price(token)
@@ -48,41 +52,18 @@ def portfolio_manager(state: AgentState):
 	You currently have **{dollar_balance}** in your wallet, the correct token balance is **{token_balance}**.
 	the current market price of **{slug}** is **{crypto_price}**.
 
-	### Step 1: Determine the Market Environment
+	You need to: 
+	- Determine the Market Environment:
+		- **Favorable to Buy** → if most strong signals or leading indicators support upside potential.
+		- **Favorable to Sell** → if dominant indicators or risks suggest downside exposure.
+		- **Neutral**: Try to avoid, only select if:
+			- The technical signal is itself Neutral, **and**
+			- No more than one other analyst gives a strong directional signal.
+			- Or all analysts are explicitly contradictory and cancel each other.
 
-	- **Favorable to Buy** → if most strong signals or leading indicators support upside potential.
-	- **Favorable to Sell** → if dominant indicators or risks suggest downside exposure.
-	- **Neutral**: Try to avoid, only select if:
-		- The technical signal is itself Neutral, **and**
-		- No more than one other analyst gives a strong directional signal.
-		- Or all analysts are explicitly contradictory and cancel each other.
-
-	### Step 2: Choose a Trading Action Based on Environment and Holdings
-	Follow this rule:
-	- If the environment is **favorable to buy**:
-		- If `dollar_balance > 0`, then: 
-			- Call `calculate_buy_quantity(dollar_balance, crypto_price)` to get how many tokens can be bought.
-			- Return: `Final Decision: **Buy**` | [calculated token quantity]
-		- If `dollar_balance == 0`, then: `Final Decision: **Hold**`.
-	- If the environment is **favorable to sell**:
-		- If `token_balance > 0`, then: 
-			- Call `calculate_sell_value(token_balance, crypto_price)` to get how much USD can be received.
-			- Return: `Final Decision: **Sell**` | [calculated USD amount]
-		- If `token_balance == 0`, then: `Final Decision: **Hold**` .
-	- If the environment is **neutral**, then: `Final Decision: **Hold**`.
-
-	### Available Tools
-
-	- `calculate_buy_quantity(dollar_balance, crypto_price)`  
-		→ Returns how many tokens can be bought with available USD.
-
-	- `calculate_sell_value(token_balance, crypto_price)`  
-		→ Returns how much USD can be received by selling the available tokens.
-
-
-	### Final Output Format (return only one line):	
-	- `Final Decision: **Buy** | [number of tokens] {token}`
-	- `Final Decision: **Sell** | [amount in USD]`
+	- Return the final decision using this **exact format** (no explanation or extra text):	
+	- `Final Decision: **Buy** `
+	- `Final Decision: **Sell** `
 	- `Final Decision: **Hold**`
 	Please keep the format consistent and clean. Do not include any additional output.
 
@@ -94,45 +75,141 @@ def portfolio_manager(state: AgentState):
 	)
 	portfolio_decision_agent = create_react_agent(
 		llm,
-		tools=[calculate_buy_quantity, calculate_sell_value],
+		tools=[],
 		state_modifier=analyst_summary_prompt,
 	)
 
 	response = portfolio_decision_agent.invoke({'messages': messages})
 	content = response['messages'][-1].content
+	match_signal = re.search(r'Final Decision: \*\*(Buy|Hold|Sell)\*\*', content)
+	if match_signal:
+		decision = match_signal.group(1)  # Extracts 'Buy', 'Sell', or 'Hold'
+	else:
+		decision = None
+	# ### Step 2: Choose a Trading Action Based on Environment and Holdings
+	# Follow this rule:
+	# - If the environment is **favorable to buy**:
+	# 	- If `dollar_balance > 0`, then:
+	# 		- Call `calculate_buy_quantity(dollar_balance, crypto_price)` to get how many tokens can be bought.
+	# 		- Return: `Final Decision: **Buy**` | [calculated token quantity]
+	# 	- If `dollar_balance == 0`, then: `Final Decision: **Hold**`.
+	# - If the environment is **favorable to sell**:
+	# 	- If `token_balance > 0`, then:
+	# 		- Call `calculate_sell_value(token_balance, crypto_price)` to get how much USD can be received.
+	# 		- Return: `Final Decision: **Sell**` | [calculated USD amount]
+	# 	- If `token_balance == 0`, then: `Final Decision: **Hold**` .
+	# - If the environment is **neutral**, then: `Final Decision: **Hold**`.
+	print(decision)
+	if decision == 'Buy':
+		if dollar_balance > 0:
+			buy_quantity = calculate_buy_quantity(dollar_balance, crypto_price)
+			action = buy(
+				slug=slug,
+				amount=buy_quantity,
+				price=crypto_price,
+				remaining_cryptos=buy_quantity,
+			)
+		else:
+			action = hold(slug=slug)
+	elif decision == 'Hold':
+		action = hold(slug=slug)
+	elif decision == 'Sell':
+		if token_balance > 0:
+			value = calculate_sell_value(token_balance, crypto_price)
+			action = sell(
+				slug=slug,
+				amount=token_balance,
+				price=crypto_price,
+				remaining_dollar=value,
+			)
+		else:
+			action = hold(slug=slug)
+	else:
+		action = 'No decision'
+
+	portfolio_analysis[slug] = {
+		'decision': content,
+		'dollar_balance': dollar_balance,
+		'token_balance': token_balance,
+		'crypto_price': crypto_price,
+		'action': action,
+	}
+	print(portfolio_analysis)
 	progress.update_status('portfolio_manager', slug, 'Done')
-	# match_signal = re.search(r'Final Decision: \*\*(Buy|Hold|Sell)\*\*', content)
-	# decisions[slug] = {'signal': match_signal.group(1) if match_signal else None}
-	# # Output decision format.
-	# print(f'Final Decision for {slug}: {content}')
-	state['data']['Portfolio manager'] = content
-	print(content)
-	return state  # final decision only contains the action.
+	message = HumanMessage(
+		content=json.dumps(portfolio_analysis),
+		name='portfolio_manager',
+	)
+
+	return {'messages': [message], 'data': data}
 
 
-@tool
 def calculate_buy_quantity(dollar_balance: float, crypto_price: float) -> float:
 	"""Returns how many tokens can be bought with the given dollar balance and price."""
 	return round(dollar_balance / crypto_price, 6)
 
 
-@tool
 def calculate_sell_value(token_balance: float, crypto_price: float) -> float:
 	"""Returns how much USD can be received by selling tokens at current price."""
 	return round(token_balance * crypto_price, 2)
 
 
-# You have access to the following tools:
-# Calculate_Amount: "Description"
-# Buy: ""
-# Sell: ""
-# Hold: "" -> defined as return None
-# def Hold:
-# 	return None
+def buy(
+	slug: str,
+	amount: float,
+	price: float,
+	remaining_cryptos: float,
+	# remaining_dollar: float,
+) -> str:
+	"""
+	Execute a BUY order by inserting into the trades table.
+	"""
+	db_path = Path(f'base_workflow/outputs/{slug}_trades.db')
+	db_path.parent.mkdir(parents=True, exist_ok=True)
+	conn = sqlite3.connect(db_path)
+	cursor = conn.cursor()
+	timestamp = datetime.utcnow().isoformat()
+	cursor.execute(
+		"INSERT INTO trades (timestamp, action, slug, amount, price, remaining_cryptos, remaining_dollar) VALUES (?, 'buy', ?, ?, ?, ?, 0.0)",
+		(timestamp, slug, amount, price, remaining_cryptos),
+	)
+	conn.commit()
+	conn.close()
+	return f'Executed BUY for {slug} | {amount} @ {price}'
 
-# define calculation tool.
+
+def sell(
+	slug: str,
+	amount: float,
+	price: float,
+	remaining_dollar: float,
+) -> str:
+	"""
+	Execute a SELL order by inserting into the trades table.
+	"""
+	db_path = Path(f'base_workflow/outputs/{slug}_trades.db')
+	db_path.parent.mkdir(parents=True, exist_ok=True)
+	conn = sqlite3.connect(db_path)
+	cursor = conn.cursor()
+	timestamp = datetime.utcnow().isoformat()
+	cursor.execute(
+		"INSERT INTO trades (timestamp, action, slug, amount, price, remaining_cryptos, remaining_dollar) VALUES (?, 'sell', ?, ?, ?, 0.0,?)",
+		(timestamp, slug, amount, price, remaining_dollar),
+	)
+	conn.commit()
+	conn.close()
+	return f'Executed SELL for {slug} | {amount} @ {price}'
+
+
+def hold(slug: str) -> str:
+	"""
+	No trade executed. Hold position.
+	"""
+	return f'HOLD: No trade executed for {slug}. Position unchanged.'
+
+
 if __name__ == '__main__':
-	llm = ChatOpenAI(model='gpt-4o')
+	llm = get_llm()
 
 	workflow = StateGraph(AgentState)
 	workflow.add_node('portfolio_manager', portfolio_manager)
@@ -173,7 +250,7 @@ if __name__ == '__main__':
 		'data': {
 			'token': 'BTC',
 			'slug': 'bitcoin',
-			'dollar balance': 1000000,  # initial capital in USD
+			'dollar balance': 2000000,  # initial capital in USD
 			'token balance': 0,  # initial token balance
 			'close_price': 30000,  # current market price of BTC
 			'start_date': '2024-06-07',
@@ -184,5 +261,4 @@ if __name__ == '__main__':
 	}
 
 	final_state = graph.invoke(initial_state)
-	final_decision = final_state['data']['Portfolio manager']
-	print(final_decision)
+	# final_decision = final_state['data']['Portfolio manager']

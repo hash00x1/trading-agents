@@ -12,6 +12,7 @@ from typing import Annotated, Sequence
 from langchain.schema import BaseMessage
 import operator
 from typing import Union
+from base_workflow.utils.llm_config import get_llm
 
 
 class DialogueAgent:
@@ -189,7 +190,7 @@ test_state = AgentState(
 	metadata={'show_reasoning': False},
 )
 # test usage
-llm = ChatOpenAI(model='gpt-4o')
+llm = get_llm()
 # bearish_researcher_tools = ["arxiv", "ddg-search", "wikipedia"]
 bearish_researcher_system_message = """
 You are a Bearish Researcher. 

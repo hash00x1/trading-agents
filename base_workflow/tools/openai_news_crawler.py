@@ -4,6 +4,7 @@ from langchain.tools import Tool
 from typing import List
 import requests
 from bs4 import BeautifulSoup
+from base_workflow.utils.llm_config import LLM_MODEL_NAME
 
 
 def scrape_news_pages(urls: List[str], coin_name: str) -> str:
@@ -60,7 +61,7 @@ def get_crypto_social_news_openai(crypto_name: str, curr_date: str):
 	client = OpenAI()
 
 	response = client.responses.create(
-		model='gpt-4.1-mini',
+		model=LLM_MODEL_NAME,
 		input=[
 			{
 				'role': 'system',
@@ -100,7 +101,7 @@ def get_crypto_global_news_openai(curr_date: str):
 	client = OpenAI()
 
 	response = client.responses.create(
-		model='gpt-4.1-mini',
+		model=LLM_MODEL_NAME,
 		input=[
 			{
 				'role': 'system',

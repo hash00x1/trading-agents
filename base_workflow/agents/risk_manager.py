@@ -1,5 +1,4 @@
 from base_workflow.agents.debate_agent import DialogueSimulatorAgent
-from langchain_openai import ChatOpenAI
 from base_workflow.agents import (
 	create_aggressive_risk_debator,
 	create_conservative_risk_debator,
@@ -12,12 +11,13 @@ from typing import Optional
 import json
 from base_workflow.utils.progress import progress
 import re
+from base_workflow.utils.llm_config import get_llm
 
 
 class RiskManager(DialogueSimulatorAgent):
 	def __init__(self, rounds: int, state: Optional[AgentState] = None):
 		self.research_analysis: dict[str, Any] = {}
-		self.model = ChatOpenAI(model='gpt-4o', temperature=0.7)
+		self.model = get_llm()
 
 		if state is None:
 			state = AgentState(messages=[], data={}, metadata={})

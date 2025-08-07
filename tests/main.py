@@ -12,12 +12,12 @@ from base_workflow.agents import (
 	portfolio_manager,
 )
 from base_workflow.tools import buy, sell, hold, read_trades
-from langchain_openai import ChatOpenAI
 from base_workflow.graph.state import AgentState
 from base_workflow.utils.progress import progress
 from reset import load_symbol_slug_mapping_from_file
 import json
 from datetime import datetime, timedelta
+from base_workflow.utils.llm_config import get_llm
 
 
 # Load environment variables from .env file
@@ -28,7 +28,7 @@ init(autoreset=True)
 # define hedging tool node
 TOOLS = [buy, sell, hold]
 
-llm = ChatOpenAI(temperature=0)
+llm = get_llm()
 llm_with_tools = llm.bind_tools(TOOLS)
 
 
@@ -45,36 +45,36 @@ llm_with_tools = llm.bind_tools(TOOLS)
 # 	call = calls[0]
 # 	fn = next(t for t in TOOLS if t.name == call['name'])
 # 	return fn.invoke(call['args'])
-def hedging_tool_node(state: AgentState) -> dict:
-	input = state['data']['Portfolio manager']
+# def hedging_tool_node(state: AgentState) -> dict:
+# 	input = state['data']['Portfolio manager']
 
-	if not isinstance(input, str) or not input.strip():
-		return {'error': "Missing or invalid 'Portfolio manager' input."}
+# 	if not isinstance(input, str) or not input.strip():
+# 		return {'error': "Missing or invalid 'Portfolio manager' input."}
 
-	try:
-		ai_msg = llm_with_tools.invoke(input)
-	except Exception as e:
-		return {'error': f'LLM invocation failed: {str(e)}'}
+# 	try:
+# 		ai_msg = llm_with_tools.invoke(input)
+# 	except Exception as e:
+# 		return {'error': f'LLM invocation failed: {str(e)}'}
 
-	calls = ai_msg.tool_calls
-	if not calls:
-		return {'result': ai_msg.content}
+# 	calls = ai_msg.tool_calls
+# 	if not calls:
+# 		return {'result': ai_msg.content}
 
-	call = calls[0]
-	fn = next((t for t in TOOLS if t.name == call['name']), None)
-	if not fn:
-		return {'error': f"Tool '{call['name']}' not found."}
+# 	call = calls[0]
+# 	fn = next((t for t in TOOLS if t.name == call['name']), None)
+# 	if not fn:
+# 		return {'error': f"Tool '{call['name']}' not found."}
 
-	try:
-		tool_result = fn.invoke(call['args'])
-	except Exception as e:
-		return {'error': f'Tool execution failed: {str(e)}'}
+# 	try:
+# 		tool_result = fn.invoke(call['args'])
+# 	except Exception as e:
+# 		return {'error': f'Tool execution failed: {str(e)}'}
 
-	return {
-		'tool_name': call['name'],
-		'tool_args': call['args'],
-		'tool_result': tool_result,
-	}
+# 	return {
+# 		'tool_name': call['name'],
+# 		'tool_args': call['args'],
+# 		'tool_result': tool_result,
+# 	}
 
 
 # for cmd in [
@@ -145,7 +145,7 @@ def run(
 				slug
 			)  # read in wallet， read in the last state of the wallet.
 			dollar_balance = df['remaining_dollar'].iloc[0]
-			token_balance = df['amount'].iloc[0]
+			token_balance = df['remaining_cryptos'].iloc[0]
 			final_state = agent.invoke(
 				{
 					'messages': [
@@ -185,16 +185,14 @@ def start(state: AgentState):
 def create_workflow(selected_analysts=None):
 	"""Create the workflow with selected analysts."""
 	workflow = StateGraph(AgentState)
-	workflow.add_node('start_node', start)
 	workflow.add_node('technical_analyst', technical_analyst)
 	workflow.add_node('social_media_analyst', social_media_analyst)
 	workflow.add_node('news_analyst', news_analyst)
 	workflow.add_node('on_chain_analyst', on_chain_analyst)
 	workflow.add_node('research_manager', research_manager)
 	workflow.add_node('risk_manager', risk_manager)
-	workflow.add_node('portfolio_manager', portfolio_manager)
 	workflow.add_node(
-		'hedging_tools', hedging_tool_node
+		'portfolio_manager', portfolio_manager
 	)  # -> needs error handlng when amount of tokens bough it larger than dollars available
 
 	# Define the workflow edges of research team
@@ -205,13 +203,7 @@ def create_workflow(selected_analysts=None):
 	workflow.add_edge('on_chain_analyst', 'research_manager')
 	workflow.add_edge('research_manager', 'risk_manager')
 	workflow.add_edge('risk_manager', 'portfolio_manager')
-	workflow.add_edge(
-		'portfolio_manager', 'hedging_tools'
-	)  # <- bound to the portfolio tools (s. langchain documentation tools.bind())
-	# check hedging tool node， write in all variable needed.
-	workflow.add_edge('hedging_tools', END)
-
-	workflow.set_entry_point('start_node')
+	workflow.add_edge('portfolio_manager', END)
 	return workflow
 
 
@@ -232,5 +224,3 @@ if __name__ == '__main__':
 		time_interval='4h',
 		show_reasoning=False,
 	)
-
-	# print(result)

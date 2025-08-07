@@ -1,8 +1,6 @@
 from san import get
 from .ask_user import ask_user
-from .execute_python import execute_python
 from .tavily_search import tavily_search
-from .edit_document import edit_document
 from .api_price import get_prices, get_real_time_price
 
 # from .news import scrape_news_pages, get_crypto_social_news_openai, get_crypto_global_news_openai
@@ -29,9 +27,7 @@ from .onchain_tools import get_on_chain_openai, analyse_daa_trend
 
 __all__ = [
 	'ask_user',
-	'execute_python',
 	'tavily_search',
-	'edit_document',
 	'get_daily_active_addresses',
 	'analyse_daa_trend',
 	'get_prices',

@@ -11,7 +11,7 @@ from scipy.stats import linregress
 from openai import OpenAI
 from datetime import datetime, timedelta
 from langchain.agents import initialize_agent, AgentType
-from langchain.chat_models import ChatOpenAI
+from base_workflow.utils.llm_config import get_llm
 
 
 def _date_only(s: str) -> str:
@@ -238,10 +238,10 @@ if __name__ == '__main__':
 
 	# print('Whale Activity News:\n', whale_news)
 
-	llm = ChatOpenAI(model='gpt-4o', temperature=0)
+	llm = get_llm()
 
 	agent = initialize_agent(
-		tools=[get_daa_trend_analysis],
+		tools=[],
 		llm=llm,
 		agent=AgentType.OPENAI_FUNCTIONS,
 		verbose=True,

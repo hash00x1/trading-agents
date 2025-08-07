@@ -1,7 +1,6 @@
 from langchain_core.messages import HumanMessage
 from base_workflow.graph.state import AgentState
 from base_workflow.utils.progress import progress
-from langchain_community.chat_models import ChatOpenAI
 import json
 import re
 from langgraph.graph import StateGraph
@@ -12,6 +11,8 @@ from base_workflow.tools import (
 	get_on_chain_openai,
 )
 from langchain.agents import initialize_agent, AgentType
+from base_workflow.utils.llm_config import get_llm
+
 
 #### On-Chain Data Analyst Agent #####
 # Book: do Fundamentals Drive Cryptocurrency Prices?
@@ -33,7 +34,7 @@ def on_chain_analyst(state: AgentState):
 	start_date = start_date.strftime('%Y-%m-%d')
 
 	slug = str(data.get('slug'))
-	llm = ChatOpenAI(model='gpt-4o-mini')
+	llm = get_llm()
 	on_chain_analysis = {}
 
 	progress.update_status('on_chain_analyst', slug, 'Fetching Network metrics')
@@ -189,7 +190,7 @@ def render_daa_trend_for_prompt(daa: dict) -> str:
 
 
 if __name__ == '__main__':
-	llm = ChatOpenAI(model='gpt-4o')
+	llm = get_llm()
 
 	workflow = StateGraph(AgentState)
 	workflow.add_node('on_chain_analyst', on_chain_analyst)

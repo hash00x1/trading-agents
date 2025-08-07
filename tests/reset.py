@@ -61,6 +61,7 @@ def log_initial_capital(slug: str, remaining_dollar: float):
             slug TEXT,
             amount REAL,
             price REAL,
+			remaining_cryptos REAL,
             remaining_dollar REAL
         )
         """
@@ -69,7 +70,7 @@ def log_initial_capital(slug: str, remaining_dollar: float):
 	# Insert minimal capital info
 	timestamp = datetime.utcnow().isoformat()
 	cursor.execute(
-		'INSERT INTO trades (timestamp, slug, amount, remaining_dollar) VALUES (?, ?, 0.0, ?)',
+		'INSERT INTO trades (timestamp, slug, amount, remaining_cryptos, remaining_dollar) VALUES (?, ?, 0.0, 0.0, ?)',
 		(timestamp, slug, remaining_dollar),
 	)
 

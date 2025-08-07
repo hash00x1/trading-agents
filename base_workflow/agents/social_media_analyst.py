@@ -1,7 +1,6 @@
 from langchain_core.messages import HumanMessage
 from base_workflow.graph.state import AgentState
 from base_workflow.utils.progress import progress
-from langchain_openai import ChatOpenAI
 import json
 import re
 from pydantic import BaseModel
@@ -16,6 +15,7 @@ from base_workflow.tools import (
 	get_fear_and_greed_index,
 	analyze_social_trends_openai,
 )
+from base_workflow.utils.llm_config import get_llm
 
 
 class SocialMediaAnalystSignal(BaseModel):
@@ -66,7 +66,7 @@ def social_media_analyst(state: AgentState):
 	start_date = start_date.strftime('%Y-%m-%d')
 
 	slug = str(data.get('slug'))
-	llm = ChatOpenAI(model='gpt-4o-mini')
+	llm = get_llm()
 	sentiment_tools = [
 		get_fear_and_greed_index,
 		analyze_social_trends_openai,
@@ -309,7 +309,7 @@ def sentiment_linear_regression(df):
 
 
 if __name__ == '__main__':
-	llm = ChatOpenAI(model='gpt-4o')
+	llm = get_llm()
 
 	workflow = StateGraph(AgentState)
 	workflow.add_node('social_media_analyst', social_media_analyst)

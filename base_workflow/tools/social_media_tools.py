@@ -4,13 +4,13 @@ from typing import Optional
 from base_workflow.data.models import FearGreedIndex
 import requests
 from langchain.agents import initialize_agent, AgentType
-from langchain_openai import ChatOpenAI
 import pandas as pd
+from base_workflow.utils.llm_config import get_llm, LLM_MODEL_NAME
 
 
 @tool
 def analyze_social_trends_openai(
-	topic: str, curr_date: str, model: str = 'gpt-4.1-mini'
+	topic: str, curr_date: str, model: str = LLM_MODEL_NAME
 ) -> Optional[str]:
 	"""
 	Analyzes social media trends, sentiment, and discussions related to a specific topic or asset.
@@ -115,7 +115,7 @@ def get_fear_and_greed_index(target_date: Optional[str] = None) -> FearGreedInde
 
 
 if __name__ == '__main__':
-	llm = ChatOpenAI(model='gpt-4', temperature=0)
+	llm = get_llm()
 
 	agent = initialize_agent(
 		tools=[get_fear_and_greed_index, analyze_social_trends_openai],

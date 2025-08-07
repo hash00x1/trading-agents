@@ -14,6 +14,7 @@ from base_workflow.utils.progress import progress
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
+
 ##### Technical Analyst #####
 # Explanation of the indicators used by the technical analysis agent:
 # Trend Following:

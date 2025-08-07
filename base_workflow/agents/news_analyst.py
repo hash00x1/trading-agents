@@ -1,12 +1,12 @@
 from langgraph.prebuilt import create_react_agent
 from base_workflow.tools.openai_news_crawler import langchain_tools
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 from base_workflow.graph.state import AgentState
 from langgraph.graph import StateGraph
 from base_workflow.utils.progress import progress
 import re
 import json
+from base_workflow.utils.llm_config import get_llm
 
 
 def news_analyst(state: AgentState):
@@ -19,7 +19,7 @@ def news_analyst(state: AgentState):
 	data = state.get('data', {})
 	end_date = data.get('end_date')
 	slug = str(data.get('slug'))
-	llm = ChatOpenAI(model='gpt-4o-mini')
+	llm = get_llm()
 	# Initialize sentiment analysis
 	news_sentiment_analysis = {}
 
@@ -125,7 +125,7 @@ def news_analyst(state: AgentState):
 
 
 if __name__ == '__main__':
-	llm = ChatOpenAI(model='gpt-4o')
+	llm = get_llm()
 
 	workflow = StateGraph(AgentState)
 	workflow.add_node('news_analyst', news_analyst)

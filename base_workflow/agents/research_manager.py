@@ -1,7 +1,6 @@
 from base_workflow.agents.debate_agent import DialogueSimulatorAgent
 from base_workflow.agents import create_bearish_researcher, create_bullish_researcher
 from typing import List
-from langchain_openai import ChatOpenAI
 from base_workflow.graph.state import AgentState
 from langchain.schema import SystemMessage, HumanMessage
 from typing import Optional
@@ -10,6 +9,7 @@ import json
 from typing import Any
 from base_workflow.utils.progress import progress
 import re
+from base_workflow.utils.llm_config import get_llm
 
 
 class ResearchReport:
@@ -21,7 +21,7 @@ class ResearchReport:
 class ResearchManager(DialogueSimulatorAgent):
 	def __init__(self, rounds: int, state: Optional[AgentState] = None):
 		self.research_analysis: dict[str, Any] = {}
-		self.model = ChatOpenAI(model='gpt-4o', temperature=0.7, max_tokens=2000)
+		self.model = get_llm()
 		# self.data = state["data"]
 
 		if state is None:
