@@ -176,7 +176,6 @@ class DialogueSimulatorAgent:
 # testing usage
 # for testing purposes please uncomment the following lines and run the code
 ######################################
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage
 
 test_state = AgentState(
