@@ -1,4 +1,4 @@
-# 🚀 Crypto Trading Dashboard
+checkpoint# 🚀 Crypto Trading Dashboard
 
 A professional, real-time trading dashboard for your crypto agents system with comprehensive analytics, portfolio management, and n8n.io integration.
 

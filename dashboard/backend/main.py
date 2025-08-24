@@ -181,16 +181,23 @@ async def get_trades_data(slug: str, limit: Optional[int] = None) -> List[TradeR
 
 		trades = []
 		for _, row in df.iterrows():
+			# Handle NaN values by converting to None or 0
 			trades.append(
 				TradeRecord(
-					id=row['id'],
-					timestamp=row['timestamp'],
-					action=row['action'],
-					slug=row['slug'],
-					amount=row['amount'],
-					price=row['price'],
-					remaining_cryptos=row['remaining_cryptos'],
-					remaining_dollar=row['remaining_dollar'],
+					id=int(row['id']) if pd.notna(row['id']) else 0,
+					timestamp=str(row['timestamp'])
+					if pd.notna(row['timestamp'])
+					else '',
+					action=str(row['action']) if pd.notna(row['action']) else None,
+					slug=str(row['slug']) if pd.notna(row['slug']) else '',
+					amount=float(row['amount']) if pd.notna(row['amount']) else 0.0,
+					price=float(row['price']) if pd.notna(row['price']) else 0.0,
+					remaining_cryptos=float(row['remaining_cryptos'])
+					if pd.notna(row['remaining_cryptos'])
+					else 0.0,
+					remaining_dollar=float(row['remaining_dollar'])
+					if pd.notna(row['remaining_dollar'])
+					else 0.0,
 				)
 			)
 
