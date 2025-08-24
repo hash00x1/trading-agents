@@ -1,0 +1,3 @@
+Requirement already satisfied: cryptography in /Users/Lukas_1/anaconda3/lib/python3.11/site-packages (41.0.2)
+Requirement already satisfied: cffi>=1.12 in /Users/Lukas_1/anaconda3/lib/python3.11/site-packages (from cryptography) (1.15.1)
+Requirement already satisfied: pycparser in /Users/Lukas_1/anaconda3/lib/python3.11/site-packages (from cffi>=1.12->cryptography) (2.21)

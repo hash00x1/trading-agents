@@ -10,7 +10,7 @@ draw_graph = "base_workflow.draw_graph:main"
 main = "base_workflow.main:main"
 
 [tool.poetry.dependencies]
-python = "3.13.1"
+python = "^3.12.1"
 langgraph = "^0.2.59"
 langsmith = "^0.1.147"
 langchain-core = "^0.3.24"
@@ -43,6 +43,11 @@ snscrape = "^0.7.0.20230622"
 vadersentiment = "^3.3.2"
 playwright = "^1.54.0"
 praw = "^7.8.1"
+# Binance wallet integration dependencies
+aiohttp = ">=3.8.0"
+websockets = ">=11.0.0"
+pytest = ">=7.0.0"
+pytest-asyncio = ">=0.21.0"
 
 [tool.poetry.plugins.dotenv]
 ignore = "false"

@@ -1,0 +1,20 @@
+# Binance Wallet Integration Dependencies
+
+# HTTP client for REST API
+aiohttp>=3.8.0
+
+# WebSocket client for real-time streams  
+websockets>=11.0.0
+
+# Cryptographic operations (Ed25519 signing)
+cryptography>=41.0.0
+
+# Testing framework
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+
+# Development dependencies (optional)
+black>=23.0.0  # Code formatting
+flake8>=6.0.0  # Linting
+mypy>=1.0.0   # Type checking
+
