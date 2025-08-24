@@ -1,6 +1,8 @@
 {
   "BTC": "bitcoin",
   "ETH": "ethereum",
+  "LINK": "chainlink",
+  "LTC": "litecoin",
   "BNB": "binancecoin",
   "USDT": "tether",
   "USDC": "usd-coin",

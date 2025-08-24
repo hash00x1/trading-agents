@@ -34,44 +34,29 @@ class CryptoAgentsAdapter:
 		self.order_manager: Optional[OrderManager] = None
 
 		# Slug to token mapping (crypto_agents slug -> token ticker)
+		# Focused portfolio: 8 positions - BTC + 7 low-risk mid-caps
 		self.slug_to_token_mapping = {
-			'bitcoin': 'BTC',
-			'ethereum': 'ETH',
-			'pepe': 'PEPE',
-			'dogecoin': 'DOGE',
-			'tether': 'USDT',
-			'litecoin': 'LTC',
-			'binancecoin': 'BNB',
-			'tron': 'TRX',
-			'ripple': 'XRP',
-			'neo': 'NEO',
-			'qtum': 'QTUM',
-			'gas': 'GAS',
-			'loopring': 'LRC',
-			'0x': 'ZRX',
-			'kyber-network': 'KNC',
-			'iota': 'IOTA',
-			'chainlink': 'LINK',
+			'bitcoin': 'BTC',  # Large cap anchor
+			'ethereum': 'ETH',  # Essential DeFi infrastructure
+			'chainlink': 'LINK',  # Oracle network leader
+			'litecoin': 'LTC',  # Proven "digital silver"
+			'binancecoin': 'BNB',  # Exchange token with utility
+			'ripple': 'XRP',  # Institutional payments focus
+			'tron': 'TRX',  # Stable mid-cap ecosystem
+			'neo': 'NEO',  # Smart contract platform
 		}
 
 		# Token to trading pair mapping (token ticker -> Binance trading pair)
+		# Focused portfolio trading pairs
 		self.token_to_pair_mapping = {
-			'BTC': 'BTCUSDT',
-			'ETH': 'ETHUSDT',
-			'PEPE': 'PEPEUSDT',
-			'DOGE': 'DOGEUSDT',
-			'LTC': 'LTCUSDT',
-			'BNB': 'BNBUSDT',
-			'TRX': 'TRXUSDT',
-			'XRP': 'XRPUSDT',
-			'NEO': 'NEOUSDT',
-			'QTUM': 'QTUMUSDT',
-			'GAS': 'GASUSDT',
-			'LRC': 'LRCUSDT',
-			'ZRX': 'ZRXUSDT',
-			'KNC': 'KNCUSDT',
-			'IOTA': 'IOTAUSDT',
-			'LINK': 'LINKUSDT',
+			'BTC': 'BTCUSDT',  # Bitcoin
+			'ETH': 'ETHUSDT',  # Ethereum
+			'LINK': 'LINKUSDT',  # Chainlink
+			'LTC': 'LTCUSDT',  # Litecoin
+			'BNB': 'BNBUSDT',  # Binance Coin
+			'XRP': 'XRPUSDT',  # Ripple
+			'TRX': 'TRXUSDT',  # TRON
+			'NEO': 'NEOUSDT',  # NEO
 			'USDT': 'USDT',  # Base currency (no pair needed)
 		}
 
