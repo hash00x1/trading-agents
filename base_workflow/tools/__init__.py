@@ -21,6 +21,14 @@ from .openai_news_crawler import (
 )
 
 from .sql_tool_kit import read_trades, buy, sell, hold
+from .binance_trading import (
+	binance_buy,
+	binance_sell,
+	binance_hold,
+	get_real_time_price_binance,
+	get_account_balances,
+	get_trading_status,
+)
 from .reddit_util import fetch_top_from_category
 from .social_media_tools import analyze_social_trends_openai, get_fear_and_greed_index
 from .onchain_tools import get_on_chain_openai, analyse_daa_trend
@@ -47,6 +55,13 @@ __all__ = [
 	'sell',
 	'hold',
 	'read_trades',
+	# Binance trading functions
+	'binance_buy',
+	'binance_sell',
+	'binance_hold',
+	'get_real_time_price_binance',
+	'get_account_balances',
+	'get_trading_status',
 	'fetch_top_from_category',
 	'analyze_social_trends_openai',
 	'get_fear_and_greed_index',

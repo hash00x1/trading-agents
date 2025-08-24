@@ -33,13 +33,46 @@ class CryptoAgentsAdapter:
 		self.client: Optional[BinanceClient] = None
 		self.order_manager: Optional[OrderManager] = None
 
-		# Symbol mapping (crypto_agents format -> Binance format)
-		self.symbol_mapping = {
+		# Slug to token mapping (crypto_agents slug -> token ticker)
+		self.slug_to_token_mapping = {
+			'bitcoin': 'BTC',
+			'ethereum': 'ETH',
+			'pepe': 'PEPE',
+			'dogecoin': 'DOGE',
+			'tether': 'USDT',
+			'litecoin': 'LTC',
+			'binancecoin': 'BNB',
+			'tron': 'TRX',
+			'ripple': 'XRP',
+			'neo': 'NEO',
+			'qtum': 'QTUM',
+			'gas': 'GAS',
+			'loopring': 'LRC',
+			'0x': 'ZRX',
+			'kyber-network': 'KNC',
+			'iota': 'IOTA',
+			'chainlink': 'LINK',
+		}
+
+		# Token to trading pair mapping (token ticker -> Binance trading pair)
+		self.token_to_pair_mapping = {
 			'BTC': 'BTCUSDT',
 			'ETH': 'ETHUSDT',
 			'PEPE': 'PEPEUSDT',
 			'DOGE': 'DOGEUSDT',
-			'USDT': 'USDT',  # Base currency
+			'LTC': 'LTCUSDT',
+			'BNB': 'BNBUSDT',
+			'TRX': 'TRXUSDT',
+			'XRP': 'XRPUSDT',
+			'NEO': 'NEOUSDT',
+			'QTUM': 'QTUMUSDT',
+			'GAS': 'GASUSDT',
+			'LRC': 'LRCUSDT',
+			'ZRX': 'ZRXUSDT',
+			'KNC': 'KNCUSDT',
+			'IOTA': 'IOTAUSDT',
+			'LINK': 'LINKUSDT',
+			'USDT': 'USDT',  # Base currency (no pair needed)
 		}
 
 		logger.info(f'CryptoAgentsAdapter initialized for {environment.value}')
@@ -77,20 +110,71 @@ class CryptoAgentsAdapter:
 
 		logger.info('CryptoAgentsAdapter cleaned up')
 
-	def _convert_symbol(self, crypto_agents_symbol: str) -> str:
-		"""Convert crypto_agents symbol to Binance format.
+	def _slug_to_token(self, slug: str) -> str:
+		"""Convert crypto_agents slug to token ticker.
 
 		Args:
-		    crypto_agents_symbol: Symbol in crypto_agents format (e.g., 'BTC')
+		    slug: Crypto slug (e.g., 'bitcoin', 'ethereum')
 
 		Returns:
-		    Symbol in Binance format (e.g., 'BTCUSDT')
+		    Token ticker (e.g., 'BTC', 'ETH')
 		"""
-		if crypto_agents_symbol.upper() in self.symbol_mapping:
-			return self.symbol_mapping[crypto_agents_symbol.upper()]
+		return self.slug_to_token_mapping.get(slug.lower(), slug.upper())
+
+	def _token_to_pair(self, token: str) -> str:
+		"""Convert token ticker to Binance trading pair.
+
+		Args:
+		    token: Token ticker (e.g., 'BTC', 'ETH')
+
+		Returns:
+		    Trading pair (e.g., 'BTCUSDT', 'ETHUSDT')
+		"""
+		token_upper = token.upper()
+		if token_upper in self.token_to_pair_mapping:
+			return self.token_to_pair_mapping[token_upper]
 		else:
-			# Try appending USDT
-			return f'{crypto_agents_symbol.upper()}USDT'
+			# Default: append USDT for unknown tokens
+			return f'{token_upper}USDT'
+
+	def _convert_symbol(self, crypto_agents_symbol: str) -> str:
+		"""Convert crypto_agents symbol to Binance trading pair format.
+
+		This method handles both slugs and tokens for backward compatibility.
+
+		Args:
+		    crypto_agents_symbol: Symbol in crypto_agents format (e.g., 'BTC' or 'bitcoin')
+
+		Returns:
+		    Trading pair in Binance format (e.g., 'BTCUSDT')
+		"""
+		# If it's a slug, convert to token first
+		if crypto_agents_symbol.lower() in self.slug_to_token_mapping:
+			token = self._slug_to_token(crypto_agents_symbol)
+		else:
+			# Assume it's already a token ticker
+			token = crypto_agents_symbol.upper()
+
+		# Convert token to trading pair
+		return self._token_to_pair(token)
+
+	def _token_to_slug(self, token: str) -> str:
+		"""Convert token symbol to crypto_agents slug.
+
+		Args:
+		    token: Token symbol (e.g., 'BTC')
+
+		Returns:
+		    Crypto slug (e.g., 'bitcoin')
+		"""
+		# Reverse lookup in the slug_to_token_mapping
+		token_upper = token.upper()
+		for slug, mapped_token in self.slug_to_token_mapping.items():
+			if mapped_token == token_upper:
+				return slug
+
+		# Default fallback
+		return token.lower()
 
 	async def get_real_time_price(self, token: str) -> float:
 		"""Get real-time price for a token (compatible with existing crypto_agents interface).
@@ -228,24 +312,24 @@ class CryptoAgentsAdapter:
 		logger.info(message)
 		return message
 
-	def _slug_to_token(self, slug: str) -> str:
-		"""Convert crypto_agents slug to token symbol.
+	# def _slug_to_token(self, slug: str) -> str:
+	# 	"""Convert crypto_agents slug to token symbol.
 
-		Args:
-		    slug: Crypto slug (e.g., 'bitcoin', 'ethereum')
+	# 	Args:
+	# 	    slug: Crypto slug (e.g., 'bitcoin', 'ethereum')
 
-		Returns:
-		    Token symbol (e.g., 'BTC', 'ETH')
-		"""
-		slug_to_token_map = {
-			'bitcoin': 'BTC',
-			'ethereum': 'ETH',
-			'pepe': 'PEPE',
-			'dogecoin': 'DOGE',
-			'tether': 'USDT',
-		}
+	# 	Returns:
+	# 	    Token symbol (e.g., 'BTC', 'ETH')
+	# 	"""
+	# 	slug_to_token_map = {
+	# 		'bitcoin': 'BTC',
+	# 		'ethereum': 'ETH',
+	# 		'pepe': 'PEPE',
+	# 		'dogecoin': 'DOGE',
+	# 		'tether': 'USDT',
+	# 	}
 
-		return slug_to_token_map.get(slug.lower(), slug.upper())
+	# 	return slug_to_token_map.get(slug.lower(), slug.upper())
 
 	def _update_trades_database(
 		self,
@@ -356,17 +440,12 @@ class CryptoAgentsAdapter:
 			sync_results = {}
 
 			# Check each supported token
-			for token, binance_symbol in self.symbol_mapping.items():
+			for slug, token in self.slug_to_token_mapping.items():
 				if token == 'USDT':
 					continue  # Skip base currency
 
-				slug = self._token_to_slug(token)
-
 				# Get balance from Binance
-				binance_base_asset = binance_symbol.replace('USDT', '')
-				binance_crypto = binance_balances.get(binance_base_asset, {}).get(
-					'total', 0
-				)
+				binance_crypto = binance_balances.get(token, {}).get('total', 0)
 				binance_usdt = binance_balances.get('USDT', {}).get('total', 0)
 
 				# Get balance from database
@@ -387,25 +466,6 @@ class CryptoAgentsAdapter:
 		except Exception as e:
 			logger.error(f'Failed to sync balances: {e}')
 			raise
-
-	def _token_to_slug(self, token: str) -> str:
-		"""Convert token symbol to crypto_agents slug.
-
-		Args:
-		    token: Token symbol (e.g., 'BTC')
-
-		Returns:
-		    Crypto slug (e.g., 'bitcoin')
-		"""
-		token_to_slug_map = {
-			'BTC': 'bitcoin',
-			'ETH': 'ethereum',
-			'PEPE': 'pepe',
-			'DOGE': 'dogecoin',
-			'USDT': 'tether',
-		}
-
-		return token_to_slug_map.get(token.upper(), token.lower())
 
 	def _get_database_balance(self, slug: str) -> Dict[str, float]:
 		"""Get current balance from crypto_agents database.
@@ -493,4 +553,3 @@ def run_sync_operation(coro):
 	except RuntimeError:
 		# No loop running, create a new one
 		return asyncio.run(coro)
-

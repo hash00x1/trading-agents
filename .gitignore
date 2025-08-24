@@ -4,3 +4,6 @@
 *.pem
 */lib/*
 */bin/*
+*/ignore_files/*
+*/.vscode/*
+*/trading_agents/*

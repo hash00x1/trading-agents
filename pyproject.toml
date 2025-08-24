@@ -8,6 +8,8 @@ readme = "README.md"
 [tool.poetry.scripts]
 draw_graph = "base_workflow.draw_graph:main"
 main = "base_workflow.main:main"
+test-binance = "base_workflow.test_binance_integration_poetry:main"
+test-binance-full = "base_workflow.test_with_credentials:main"
 
 [tool.poetry.dependencies]
 python = "^3.12.1"
@@ -48,6 +50,8 @@ aiohttp = ">=3.8.0"
 websockets = ">=11.0.0"
 pytest = ">=7.0.0"
 pytest-asyncio = ">=0.21.0"
+cryptography = ">=41.0.0"
+python-dotenv = ">=1.0.0"
 
 [tool.poetry.plugins.dotenv]
 ignore = "false"

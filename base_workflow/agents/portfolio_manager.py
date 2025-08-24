@@ -5,11 +5,21 @@ from base_workflow.utils.progress import progress
 from langgraph.prebuilt import create_react_agent
 from langgraph.graph import StateGraph
 from base_workflow.tools import get_real_time_price
+from base_workflow.tools.binance_trading import (
+	binance_buy,
+	binance_sell,
+	binance_hold,
+	get_real_time_price_binance,
+	get_trading_status,
+)
 from datetime import datetime
 import sqlite3
 from pathlib import Path
 import re
 from base_workflow.utils.llm_config import get_llm
+import logging
+
+logger = logging.getLogger(__name__)
 
 # You have access to the following tools:
 # Calculate_Amount: "Description"
@@ -36,10 +46,16 @@ def portfolio_manager(state: AgentState):
 	)
 	portfolio_analysis = {}
 
-	try:  # if not get the newest price use the latest ohlcv price instead.
-		crypto_price = get_real_time_price(token)
+	try:  # Try to get price from Binance first, fallback to existing API
+		crypto_price = get_real_time_price_binance(token)
+		logger.info(f'Got Binance price for {token}: ${crypto_price}')
 	except Exception:
-		crypto_price = state['data']['close_price']
+		try:
+			crypto_price = get_real_time_price(token)
+			logger.info(f'Got fallback price for {token}: ${crypto_price}')
+		except Exception:
+			crypto_price = state['data']['close_price']
+			logger.warning(f'Using historical price for {token}: ${crypto_price}')
 
 	# print(crypto_price)
 	# print(dollar_balance)
@@ -100,32 +116,48 @@ def portfolio_manager(state: AgentState):
 	# 	- If `token_balance == 0`, then: `Final Decision: **Hold**` .
 	# - If the environment is **neutral**, then: `Final Decision: **Hold**`.
 	print(decision)
+	# Get current trading status for logging
+	trading_status = get_trading_status()
+	logger.info(f'Trading status: {trading_status["environment"]}')
+
 	if decision == 'Buy':
 		if dollar_balance > 0:
 			buy_quantity = calculate_buy_quantity(dollar_balance, crypto_price)
-			action = buy(
-				slug=slug,
-				amount=buy_quantity,
-				price=crypto_price,
-				remaining_cryptos=buy_quantity,
+			# Use Binance trading function
+			action = binance_buy.invoke(
+				{
+					'slug': slug,
+					'amount': buy_quantity,
+					'price': crypto_price,
+					'remaining_cryptos': buy_quantity,
+				}
 			)
+			logger.info(f'BUY executed: {action}')
 		else:
-			action = hold(slug=slug)
+			action = binance_hold.invoke({'slug': slug})
+			logger.info(f'HOLD (no dollar balance): {action}')
 	elif decision == 'Hold':
-		action = hold(slug=slug)
+		action = binance_hold.invoke({'slug': slug})
+		logger.info(f'HOLD: {action}')
 	elif decision == 'Sell':
 		if token_balance > 0:
 			value = calculate_sell_value(token_balance, crypto_price)
-			action = sell(
-				slug=slug,
-				amount=token_balance,
-				price=crypto_price,
-				remaining_dollar=value,
+			# Use Binance trading function
+			action = binance_sell.invoke(
+				{
+					'slug': slug,
+					'amount': token_balance,
+					'price': crypto_price,
+					'remaining_dollar': value,
+				}
 			)
+			logger.info(f'SELL executed: {action}')
 		else:
-			action = hold(slug=slug)
+			action = binance_hold.invoke({'slug': slug})
+			logger.info(f'HOLD (no token balance): {action}')
 	else:
 		action = 'No decision'
+		logger.warning(f'No valid decision made: {decision}')
 
 	portfolio_analysis[slug] = {
 		'decision': content,
