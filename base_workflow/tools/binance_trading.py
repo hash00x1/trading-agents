@@ -5,6 +5,8 @@ This module provides trading functions that integrate with Binance
 through the crypto_agents_adapter, replacing the mock trading functions.
 """
 
+import asyncio
+import atexit
 import logging
 from typing import Optional
 from langchain_core.tools import tool
@@ -60,6 +62,30 @@ async def cleanup_adapter():
 		_adapter = None
 
 
+def _cleanup_on_exit():
+	"""Cleanup function to be called on module exit."""
+	global _adapter
+	if _adapter:
+		try:
+			# Try to run cleanup in the current event loop if available
+			loop = asyncio.get_event_loop()
+			if not loop.is_closed():
+				loop.run_until_complete(_adapter.cleanup())
+		except Exception:
+			# If we can't use the current loop, create a new one
+			try:
+				asyncio.run(_adapter.cleanup())
+			except Exception:
+				# Last resort: just set to None to avoid hanging references
+				logger.warning('Could not properly cleanup adapter, setting to None')
+		finally:
+			_adapter = None
+
+
+# Register cleanup function to be called on module exit
+atexit.register(_cleanup_on_exit)
+
+
 @tool
 def binance_buy(
 	slug: str, amount: float, price: float, remaining_cryptos: float
@@ -103,8 +129,13 @@ def binance_buy(
 	except Exception as e:
 		error_msg = f'Binance BUY failed for {slug}: {str(e)}'
 		logger.error(error_msg)
-		# Fall back to paper trading on error
-		return _paper_buy(slug, amount, price, remaining_cryptos)
+
+		# NO PAPER TRADING FALLBACK IN LIVE MODE
+		if binance_config.is_live_trading_enabled():
+			raise Exception(f'Live trading BUY failed for {slug}: {str(e)}')
+		else:
+			# Only use paper trading if explicitly in paper mode
+			return _paper_buy(slug, amount, price, remaining_cryptos)
 
 
 @tool
@@ -147,8 +178,13 @@ def binance_sell(
 	except Exception as e:
 		error_msg = f'Binance SELL failed for {slug}: {str(e)}'
 		logger.error(error_msg)
-		# Fall back to paper trading on error
-		return _paper_sell(slug, amount, price, remaining_dollar)
+
+		# NO PAPER TRADING FALLBACK IN LIVE MODE
+		if binance_config.is_live_trading_enabled():
+			raise Exception(f'Live trading SELL failed for {slug}: {str(e)}')
+		else:
+			# Only use paper trading if explicitly in paper mode
+			return _paper_sell(slug, amount, price, remaining_dollar)
 
 
 @tool
@@ -190,7 +226,7 @@ def get_real_time_price_binance(token: str) -> float:
 	"""Get real-time price from Binance."""
 	try:
 		if not binance_config.is_live_trading_enabled():
-			# Fall back to existing price API
+			# Use existing price API for paper trading mode
 			from base_workflow.tools.api_price import get_real_time_price
 
 			return get_real_time_price(token)
@@ -201,10 +237,17 @@ def get_real_time_price_binance(token: str) -> float:
 
 	except Exception as e:
 		logger.error(f'Failed to get Binance price for {token}: {e}')
-		# Fall back to existing price API
-		from base_workflow.tools.api_price import get_real_time_price
 
-		return get_real_time_price(token)
+		# NO FALLBACK IN LIVE MODE - must use real Binance prices
+		if binance_config.is_live_trading_enabled():
+			raise Exception(
+				f'Live trading requires real Binance price for {token}: {str(e)}'
+			)
+		else:
+			# Only fallback if in paper trading mode
+			from base_workflow.tools.api_price import get_real_time_price
+
+			return get_real_time_price(token)
 
 
 # Paper trading fallback functions

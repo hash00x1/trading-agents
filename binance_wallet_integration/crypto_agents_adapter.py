@@ -549,6 +549,11 @@ def run_sync_operation(coro):
 	"""Run async operation synchronously (for compatibility with existing sync code)."""
 	try:
 		loop = asyncio.get_event_loop()
+		if loop.is_running():
+			# We're already in an async context, we can't use run_until_complete
+			raise RuntimeError(
+				'Cannot call run_sync_operation from within an async context'
+			)
 		return loop.run_until_complete(coro)
 	except RuntimeError:
 		# No loop running, create a new one

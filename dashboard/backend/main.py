@@ -139,6 +139,25 @@ class WebhookRequest(BaseModel):
 	price: Optional[float] = None
 
 
+# Asset mapping for Binance symbols to crypto slugs
+asset_to_slug_mapping = {
+	'btc': 'bitcoin',
+	'eth': 'ethereum', 
+	'doge': 'dogecoin',
+	'pepe': 'pepe',
+	'usdt': 'tether',
+	'usdc': 'usd-coin',
+	'bnb': 'binancecoin',
+	'ada': 'cardano',
+	'sol': 'solana',
+	'xrp': 'ripple',
+	'dot': 'polkadot',
+	'avax': 'avalanche-2',
+	'link': 'chainlink',
+	'matic': 'matic-network',
+	'ltc': 'litecoin',
+}
+
 # Helper functions
 def get_db_path(slug: str) -> Path:
 	"""Get database path for a specific crypto"""
@@ -259,23 +278,8 @@ async def calculate_pnl(slug: str, period_days: int = 1) -> Dict[str, float]:
 	}
 
 
-# API Endpoints
-
-
-@app.get('/')
-async def root():
-	"""Health check endpoint"""
-	return {
-		'message': 'Crypto Trading Dashboard API',
-		'version': '1.0.0',
-		'status': 'healthy',
-		'trading_mode': binance_config.get_environment_name(),
-	}
-
-
-@app.get('/api/portfolio/summary', response_model=PortfolioSummary)
-async def get_portfolio_summary():
-	"""Get complete portfolio summary with current positions and PnL"""
+async def get_local_portfolio_summary():
+	"""Get portfolio summary from local database (paper trading mode only)"""
 	cryptos = get_available_cryptos()
 
 	total_usd_value = 0.0
@@ -288,11 +292,11 @@ async def get_portfolio_summary():
 		if trades:
 			latest_trade = trades[0]
 
-			# Get current price
+			# Get current price (fallback to historical if real price fails)
 			try:
 				current_price = get_real_time_price_binance(slug)
 			except:
-				current_price = latest_trade.price
+				current_price = latest_trade.price if latest_trade.price > 0 else 1.0
 
 			# Calculate position value
 			crypto_value = latest_trade.remaining_cryptos * current_price
@@ -313,6 +317,7 @@ async def get_portfolio_summary():
 				'pnl_24h_percentage': pnl_data['pnl_percentage'],
 				'last_action': latest_trade.action,
 				'last_trade_time': latest_trade.timestamp,
+				'source': 'local_database'
 			}
 
 	total_pnl_percentage = (
@@ -326,6 +331,98 @@ async def get_portfolio_summary():
 		positions=positions,
 		last_updated=datetime.now().isoformat(),
 	)
+
+
+# API Endpoints
+
+
+@app.get('/')
+async def root():
+	"""Health check endpoint"""
+	return {
+		'message': 'Crypto Trading Dashboard API',
+		'version': '1.0.0',
+		'status': 'healthy',
+		'trading_mode': binance_config.get_environment_name(),
+	}
+
+
+@app.get('/api/portfolio/summary', response_model=PortfolioSummary)
+async def get_portfolio_summary():
+	"""Get complete portfolio summary with REAL Binance account balances"""
+	
+	# First, get real Binance account balances
+	real_balances = {}
+	total_usd_value = 0.0
+	
+	try:
+		# Get real account balances from Binance
+		binance_balances = get_account_balances()
+		
+		if isinstance(binance_balances, dict) and 'error' not in binance_balances:
+			# Process real Binance balances
+			for asset, balance_info in binance_balances.items():
+				if isinstance(balance_info, dict) and balance_info.get('total', 0) > 0:
+					# Get current USD price for the asset
+					try:
+						if asset.upper() == 'USDT' or asset.upper() == 'USD':
+							current_price = 1.0
+						else:
+							# Convert asset names to slugs for price lookup
+							slug = asset_to_slug_mapping.get(asset.lower(), asset.lower())
+							current_price = get_real_time_price_binance(slug)
+						
+						crypto_balance = balance_info['total']
+						crypto_value = crypto_balance * current_price
+						total_usd_value += crypto_value
+						
+						real_balances[asset.lower()] = {
+							'crypto_balance': crypto_balance,
+							'usd_balance': 0.0,  # All value is in crypto for real balances
+							'current_price': current_price,
+							'crypto_value': crypto_value,
+							'total_value': crypto_value,
+							'pnl_24h': 0.0,  # Calculate from trade history
+							'pnl_24h_percentage': 0.0,
+							'last_action': 'real_balance',
+							'last_trade_time': datetime.now().isoformat(),
+							'source': 'binance_live'
+						}
+						
+					except Exception as price_error:
+						logger.warning(f"Could not get price for {asset}: {price_error}")
+						continue
+		
+		# If we have real balances, use them; otherwise fall back to local data for development
+		if real_balances:
+			logger.info(f"Using REAL Binance balances: {len(real_balances)} assets, ${total_usd_value:.2f} total")
+			return PortfolioSummary(
+				total_usd_value=total_usd_value,
+				total_pnl=0.0,  # Would need historical data to calculate properly
+				total_pnl_percentage=0.0,
+				positions=real_balances,
+				last_updated=datetime.now().isoformat(),
+			)
+			
+	except Exception as e:
+		logger.error(f"Failed to get real Binance balances: {e}")
+		
+		# STOP PAPER TRADING FALLBACK FOR LIVE MODE
+		if binance_config.is_live_trading_enabled():
+			raise HTTPException(
+				status_code=503, 
+				detail=f"Live trading mode enabled but cannot access Binance account: {str(e)}"
+			)
+	
+	# Only use local data if in paper trading mode
+	if not binance_config.is_live_trading_enabled():
+		logger.info("Paper trading mode - using local database balances")
+		return await get_local_portfolio_summary()
+	else:
+		raise HTTPException(
+			status_code=503, 
+			detail="Live trading mode enabled but Binance account access failed"
+		)
 
 
 @app.get('/api/performance/{slug}')

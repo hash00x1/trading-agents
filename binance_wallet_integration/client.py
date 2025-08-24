@@ -118,7 +118,22 @@ class BinanceClient:
 
 	async def _ensure_session(self) -> None:
 		"""Ensure HTTP session is available."""
-		if self._session is None or self._session.closed:
+		# Check if session is invalid (None, closed, or from different event loop)
+		session_invalid = (
+			self._session is None
+			or self._session.closed
+			or self._session._loop != asyncio.get_event_loop()
+		)
+
+		if session_invalid:
+			# Close old session if it exists and is not closed
+			if self._session and not self._session.closed:
+				try:
+					await self._session.close()
+				except Exception:
+					pass  # Ignore errors when closing old session
+
+			# Create new session for current event loop
 			self._session = aiohttp.ClientSession(
 				timeout=self._timeout,
 				connector=self._connector,
