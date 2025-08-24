@@ -1,7 +1,6 @@
 from langchain_openai import ChatOpenAI
 
-# gpt-4o-mini, gpt-4o-nano
-LLM_MODEL_NAME = 'gpt-4.1-mini'
+LLM_MODEL_NAME = 'gpt-4.1-mini'  # gpt-4.1-nano
 
 
 def get_llm():

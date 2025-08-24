@@ -9,7 +9,7 @@ readme = "README.md"
 draw_graph = "base_workflow.draw_graph:main"
 main = "base_workflow.main:main"
 test-binance = "base_workflow.test_binance_integration_poetry:main"
-test-binance-full = "base_workflow.test_with_credentials:main"
+test-binance-full = "base_workflow.test_with_credentials_sync:main"
 
 [tool.poetry.dependencies]
 python = "^3.12.1"

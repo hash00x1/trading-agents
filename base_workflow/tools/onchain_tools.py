@@ -66,7 +66,7 @@ def get_on_chain_openai(slug: str, curr_date: str):
 	system_text = _build_system_text(slug, start_date, end_date)
 
 	response = client.responses.create(
-		model='gpt-4.1',
+		model='gpt-4.1-nano',
 		input=[
 			{
 				'role': 'system',
